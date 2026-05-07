@@ -1,10 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-// ─── YOUR 3 TRACKS ────────────────────────────────────────────────────────────
-// Put the audio files in: frontend/public/audio/
-//   track1.mp3  ← WhatsApp_Audio_2026-05-02_at_09_53_38.mpeg  (Marvel Theme, 30s)
-//   track2.mp3  ← WhatsApp_Audio_2026-05-02_at_09_54_23__1_.mpeg  (29s)
-//   track3.mp3  ← WhatsApp_Audio_2026-05-02_at_09_54_23.mpeg  (17s)
 const TRACKS = [
   {
     id: "track1",
@@ -35,7 +30,9 @@ const TRACKS = [
   },
 ];
 
-// ─── WAVEFORM VISUALIZER ──────────────────────────────────────────────────────
+// Export TRACKS so the profile page can read track names/icons
+export { TRACKS };
+
 function Waveform({ heights, isPlaying, accentColor }) {
   return (
     <div style={{ display: "flex", alignItems: "flex-end", gap: 3, height: 32 }}>
@@ -66,7 +63,6 @@ function Waveform({ heights, isPlaying, accentColor }) {
   );
 }
 
-// ─── TRACK DRAWER ─────────────────────────────────────────────────────────────
 function TrackDrawer({ tracks, activeId, onSelect }) {
   return (
     <div
@@ -122,18 +118,10 @@ function TrackDrawer({ tracks, activeId, onSelect }) {
             }}
           >
             <span style={{ fontSize: 22 }}>{t.icon}</span>
-            <span
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: isActive ? t.accentColor : "#e5e5e5",
-              }}
-            >
+            <span style={{ fontSize: 13, fontWeight: 600, color: isActive ? t.accentColor : "#e5e5e5" }}>
               {t.name}
             </span>
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-              {t.vibe}
-            </span>
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{t.vibe}</span>
           </button>
         );
       })}
@@ -141,21 +129,35 @@ function TrackDrawer({ tracks, activeId, onSelect }) {
   );
 }
 
+// ─── STORAGE HELPERS ──────────────────────────────────────────────────────────
+const LS_ENABLED   = "fb-music-enabled";
+const LS_VOLUME    = "fb-music-volume";
+const LS_TRACK     = "fb-music-track";
+
+function readEnabled()  { return localStorage.getItem(LS_ENABLED) !== "false"; }
+function readVolume()   { const v = parseFloat(localStorage.getItem(LS_VOLUME)); return isNaN(v) ? 0.7 : v; }
+function readTrackId()  { return localStorage.getItem(LS_TRACK) || "track1"; }
+
 // ─── MAIN PLAYER ──────────────────────────────────────────────────────────────
 export default function ThemeMusicPlayer() {
-  const [activeTrack, setActiveTrack] = useState(TRACKS[0]);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [volume, setVolume] = useState(0.7);
-  const [isMuted, setIsMuted] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(0);
-  const [showDrawer, setShowDrawer] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const savedTrack = TRACKS.find(t => t.id === readTrackId()) || TRACKS[0];
 
-  const audioRef = useRef(null);
+  const [activeTrack, setActiveTrack] = useState(savedTrack);
+  const [isPlaying,   setIsPlaying]   = useState(false);
+  const [volume,      setVolume]      = useState(readVolume);
+  const [isMuted,     setIsMuted]     = useState(false);
+  const [progress,    setProgress]    = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration,    setDuration]    = useState(0);
+  const [showDrawer,  setShowDrawer]  = useState(false);
+  const [isLoading,   setIsLoading]   = useState(false);
+  // NEW: enabled state — reads from localStorage so profile toggle can sync
+  const [enabled,     setEnabled]     = useState(readEnabled);
+
+  const audioRef  = useRef(null);
   const tickerRef = useRef(null);
 
+  // ── Setup audio element once ──────────────────────────────────────────────
   useEffect(() => {
     const audio = new Audio();
     audio.preload = "metadata";
@@ -164,8 +166,8 @@ export default function ThemeMusicPlayer() {
     audioRef.current = audio;
 
     audio.addEventListener("loadedmetadata", () => setDuration(audio.duration));
-    audio.addEventListener("canplay", () => setIsLoading(false));
-    audio.addEventListener("waiting", () => setIsLoading(true));
+    audio.addEventListener("canplay",        () => setIsLoading(false));
+    audio.addEventListener("waiting",        () => setIsLoading(true));
 
     return () => {
       audio.pause();
@@ -174,12 +176,13 @@ export default function ThemeMusicPlayer() {
     };
   }, []);
 
+  // ── Volume / mute sync ────────────────────────────────────────────────────
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = isMuted ? 0 : volume;
-    }
+    if (audioRef.current) audioRef.current.volume = isMuted ? 0 : volume;
+    localStorage.setItem(LS_VOLUME, volume);
   }, [volume, isMuted]);
 
+  // ── Progress ticker ───────────────────────────────────────────────────────
   useEffect(() => {
     clearInterval(tickerRef.current);
     if (isPlaying) {
@@ -193,6 +196,61 @@ export default function ThemeMusicPlayer() {
     return () => clearInterval(tickerRef.current);
   }, [isPlaying]);
 
+  // ── NEW: Listen for storage events from other tabs / profile page ─────────
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === LS_ENABLED) {
+        const on = e.newValue !== "false";
+        setEnabled(on);
+        if (!on && audioRef.current) {
+          audioRef.current.pause();
+          setIsPlaying(false);
+        }
+      }
+      if (e.key === LS_VOLUME) {
+        const v = parseFloat(e.newValue);
+        if (!isNaN(v)) setVolume(v);
+      }
+      if (e.key === LS_TRACK) {
+        const t = TRACKS.find(tr => tr.id === e.newValue);
+        if (t) setActiveTrack(t);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  // ── NEW: Also poll localStorage every 500ms for same-tab profile changes ──
+  useEffect(() => {
+    const poll = setInterval(() => {
+      const on = readEnabled();
+      setEnabled(prev => {
+        if (prev !== on) {
+          if (!on && audioRef.current) {
+            audioRef.current.pause();
+            setIsPlaying(false);
+          }
+          return on;
+        }
+        return prev;
+      });
+
+      const v = readVolume();
+      setVolume(prev => prev !== v ? v : prev);
+
+      const savedId = readTrackId();
+      setActiveTrack(prev => {
+        if (prev.id !== savedId) {
+          const t = TRACKS.find(tr => tr.id === savedId);
+          return t || prev;
+        }
+        return prev;
+      });
+    }, 500);
+    return () => clearInterval(poll);
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────────────────
   const loadAndPlay = useCallback((track) => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -208,6 +266,7 @@ export default function ThemeMusicPlayer() {
 
   const handleSelectTrack = (track) => {
     setActiveTrack(track);
+    localStorage.setItem(LS_TRACK, track.id);
     loadAndPlay(track);
     setShowDrawer(false);
   };
@@ -230,7 +289,7 @@ export default function ThemeMusicPlayer() {
   const handleSeek = (e) => {
     const audio = audioRef.current;
     if (!audio || !audio.duration) return;
-    const rect = e.currentTarget.getBoundingClientRect();
+    const rect  = e.currentTarget.getBoundingClientRect();
     const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     audio.currentTime = ratio * audio.duration;
     setProgress(ratio);
@@ -242,23 +301,21 @@ export default function ThemeMusicPlayer() {
     return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
   };
 
+  // ── If disabled from profile page, render nothing (but keep mounted) ──────
+  if (!enabled) return <div style={{ height: 0 }} />;
+
   const accent = activeTrack.accentColor;
 
   return (
     <>
       {showDrawer && (
-        <div
-          onClick={() => setShowDrawer(false)}
-          style={{ position: "fixed", inset: 0, zIndex: 9998 }}
-        />
+        <div onClick={() => setShowDrawer(false)} style={{ position: "fixed", inset: 0, zIndex: 9998 }} />
       )}
 
       <div
         style={{
           position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
+          bottom: 0, left: 0, right: 0,
           zIndex: 9999,
           background: "rgba(10, 10, 16, 0.97)",
           borderTop: "1px solid rgba(255,255,255,0.08)",
@@ -276,57 +333,28 @@ export default function ThemeMusicPlayer() {
         {/* Track selector */}
         <div style={{ position: "relative", flexShrink: 0 }}>
           {showDrawer && (
-            <TrackDrawer
-              tracks={TRACKS}
-              activeId={activeTrack.id}
-              onSelect={handleSelectTrack}
-            />
+            <TrackDrawer tracks={TRACKS} activeId={activeTrack.id} onSelect={handleSelectTrack} />
           )}
           <button
             onClick={() => setShowDrawer((v) => !v)}
             title="Change theme music"
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
+              display: "flex", alignItems: "center", gap: 10,
               background: showDrawer ? "rgba(255,255,255,0.07)" : "transparent",
               border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: 10,
-              padding: "6px 12px 6px 8px",
-              cursor: "pointer",
-              minWidth: 160,
-              maxWidth: 210,
+              borderRadius: 10, padding: "6px 12px 6px 8px",
+              cursor: "pointer", minWidth: 160, maxWidth: 210,
               transition: "background 0.15s",
             }}
           >
             <span style={{ fontSize: 22 }}>{activeTrack.icon}</span>
             <div style={{ textAlign: "left", overflow: "hidden", flex: 1 }}>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: accent,
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
+              <div style={{ fontSize: 13, fontWeight: 600, color: accent, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                 {activeTrack.name}
               </div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>
-                {activeTrack.vibe}
-              </div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{activeTrack.vibe}</div>
             </div>
-            <span
-              style={{
-                fontSize: 10,
-                color: "rgba(255,255,255,0.3)",
-                transition: "transform 0.2s",
-                transform: showDrawer ? "rotate(180deg)" : "rotate(0deg)",
-              }}
-            >
-              ▲
-            </span>
+            <span style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", transition: "transform 0.2s", transform: showDrawer ? "rotate(180deg)" : "rotate(0deg)" }}>▲</span>
           </button>
         </div>
 
@@ -338,18 +366,11 @@ export default function ThemeMusicPlayer() {
               disabled={isLoading}
               title={isPlaying ? "Pause" : "Play"}
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: "50%",
+                width: 40, height: 40, borderRadius: "50%",
                 background: isLoading ? "rgba(255,255,255,0.1)" : accent,
-                border: "none",
-                cursor: isLoading ? "wait" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 15,
-                color: "#fff",
-                transition: "transform 0.1s, background 0.2s",
+                border: "none", cursor: isLoading ? "wait" : "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 15, color: "#fff", transition: "transform 0.1s, background 0.2s",
               }}
               onMouseDown={(e) => (e.currentTarget.style.transform = "scale(0.93)")}
               onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
@@ -357,80 +378,35 @@ export default function ThemeMusicPlayer() {
               {isLoading ? "⏳" : isPlaying ? "⏸" : "▶"}
             </button>
           </div>
-
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", minWidth: 32, textAlign: "right" }}>
-              {fmt(currentTime)}
-            </span>
-            <div
-              onClick={handleSeek}
-              style={{
-                flex: 1,
-                height: 4,
-                background: "rgba(255,255,255,0.1)",
-                borderRadius: 2,
-                cursor: "pointer",
-                position: "relative",
-                overflow: "hidden",
-              }}
-            >
-              <div
-                style={{
-                  position: "absolute",
-                  left: 0,
-                  top: 0,
-                  height: "100%",
-                  width: `${(progress * 100).toFixed(1)}%`,
-                  background: accent,
-                  borderRadius: 2,
-                  transition: "width 0.25s linear",
-                }}
-              />
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", minWidth: 32, textAlign: "right" }}>{fmt(currentTime)}</span>
+            <div onClick={handleSeek} style={{ flex: 1, height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 2, cursor: "pointer", position: "relative", overflow: "hidden" }}>
+              <div style={{ position: "absolute", left: 0, top: 0, height: "100%", width: `${(progress * 100).toFixed(1)}%`, background: accent, borderRadius: 2, transition: "width 0.25s linear" }} />
             </div>
-            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", minWidth: 32 }}>
-              {fmt(duration)}
-            </span>
+            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", minWidth: 32 }}>{fmt(duration)}</span>
           </div>
         </div>
 
         {/* Right: visualizer + volume */}
         <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
-          <Waveform
-            heights={activeTrack.waveHeights}
-            isPlaying={isPlaying}
-            accentColor={accent}
-          />
+          <Waveform heights={activeTrack.waveHeights} isPlaying={isPlaying} accentColor={accent} />
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <button
               onClick={() => setIsMuted((m) => !m)}
-              style={{
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                fontSize: 16,
-                color: "rgba(255,255,255,0.5)",
-                padding: 0,
-              }}
+              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "rgba(255,255,255,0.5)", padding: 0 }}
             >
               {isMuted || volume === 0 ? "🔇" : volume < 0.4 ? "🔉" : "🔊"}
             </button>
             <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.01}
+              type="range" min={0} max={1} step={0.01}
               value={isMuted ? 0 : volume}
-              onChange={(e) => {
-                setVolume(parseFloat(e.target.value));
-                setIsMuted(false);
-              }}
+              onChange={(e) => { setVolume(parseFloat(e.target.value)); setIsMuted(false); }}
               style={{ width: 80, accentColor: accent, cursor: "pointer" }}
             />
           </div>
         </div>
       </div>
 
-      {/* Spacer */}
       <div style={{ height: 76 }} />
     </>
   );
