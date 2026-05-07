@@ -1,8 +1,11 @@
+require("dotenv").config();
 const express = require("express");
 console.log("Starting server...");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
+const { storeOtp, verifyOtp } = require('./otp');
+const { sendOtp } = require('./mailer');
 
 const app = express();
 app.use(cors());
@@ -22,9 +25,11 @@ mongoose.connect(process.env.MONGO_URI)
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 const userSchema = new mongoose.Schema({
   name: { type: String, unique: true },
+  email: { type: String, unique: true, sparse: true },
   password: String,
   points: { type: Number, default: 1000 },
   lockedPoints: { type: Number, default: 0 },
+  isVerified: { type: Boolean, default: false },
 });
 
 const betSchema = new mongoose.Schema({
@@ -170,17 +175,41 @@ async function settleContest(contest, winnerTeamName, totalPot) {
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
-app.post("/register", async (req, res) => {
+app.post("/register/send-otp", async (req, res) => {
   try {
-    const { name, password } = req.body;
-    if (!name || !password)
-      return res.status(400).json({ message: "Name and password are required" });
-    const existing = await User.findOne({ name });
-    if (existing)
-      return res.status(400).json({ message: "Username already taken!" });
+    const { name, email, password } = req.body;
+    if (!name || !email || !password)
+      return res.status(400).json({ message: "Name, email and password are required" });
+
+    const existingName = await User.findOne({ name });
+    if (existingName) return res.status(400).json({ message: "Username already taken!" });
+
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail) return res.status(400).json({ message: "Email already registered!" });
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ name, password: hashedPassword });
+
+    storeOtp(email, { otp, name, email, password: hashedPassword });
+    await sendOtp(email, otp);
+
+    res.json({ message: "OTP sent to your email!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to send OTP" });
+  }
+});
+
+app.post("/register/verify-otp", async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    const result = verifyOtp(email, otp);
+    if (!result.valid) return res.status(400).json({ message: result.reason });
+
+    const { name, password } = result.data;
+    const user = new User({ name, email, password, isVerified: true });
     await user.save();
+
     res.json({ name: user.name, points: user.points, lockedPoints: user.lockedPoints });
   } catch (err) {
     console.error(err);
