@@ -1,4 +1,4 @@
-require("dotenv").config();
+require('dotenv').config();
 const express = require("express");
 console.log("Starting server...");
 const mongoose = require("mongoose");
