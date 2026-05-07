@@ -1,4 +1,6 @@
 require('dotenv').config();
+console.log('GMAIL_USER:', process.env.GMAIL_USER);
+console.log('GMAIL_PASS:', process.env.GMAIL_PASS ? 'loaded' : 'MISSING');
 const express = require("express");
 console.log("Starting server...");
 const mongoose = require("mongoose");
