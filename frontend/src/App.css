@@ -25,6 +25,61 @@
     radial-gradient(circle, rgba(0,0,0,0.06) 1px, transparent 1px);
   background-size: 14px 14px;
 }
+/* ── BATMAN THEME ────────────────────────────────────────── */
+[data-theme="batman"] {
+  --bg:           #0a0a0a;
+  --surface:      #111111;
+  --surface2:     #1a1a1a;
+  --border:       #2a2a2a;
+  --text:         #e8e8e8;
+  --muted:        #666666;
+  --accent:       #F4C430;
+  --accent2:      #e5a800;
+  --nav-bg:       rgba(8,8,8,0.95);
+  --grid-color:   rgba(244,196,48,0.04);
+  --glow-color:   rgba(244,196,48,0.06);
+  --input-shadow: rgba(244,196,48,0.15);
+  --btn-shadow:   rgba(244,196,48,0.3);
+  --sport-shadow: rgba(244,196,48,0.12);
+  --green:        #22c55e;
+  --red:          #ef4444;
+}
+
+[data-theme="batman"] .bg-glow {
+  background: radial-gradient(ellipse, rgba(244,196,48,0.05) 0%, transparent 70%);
+}
+
+[data-theme="batman"] .nav {
+  border-bottom: 1px solid #F4C43022;
+  background: rgba(5,5,5,0.97);
+}
+
+[data-theme="batman"] .nav-logo::before {
+  content: "🦇 ";
+}
+
+[data-theme="batman"] .login-box {
+  border-color: #F4C43033;
+  box-shadow: 0 0 60px rgba(244,196,48,0.08);
+}
+
+[data-theme="batman"] .btn-primary {
+  background: #F4C430;
+  color: #000;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+[data-theme="batman"] .sport-card:hover {
+  box-shadow: 0 0 30px rgba(244,196,48,0.15);
+  border-color: #F4C430;
+}
+
+[data-theme="batman"] .leaderboard-row.you {
+  border-color: #F4C430;
+  background: rgba(244,196,48,0.04);
+  box-shadow: 0 0 20px rgba(244,196,48,0.08);
+}
 
 /* ── LOGIN ───────────────────────────────────────────────── */
 .login-screen {

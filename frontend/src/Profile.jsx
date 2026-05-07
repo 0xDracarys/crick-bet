@@ -120,6 +120,8 @@ export default function Profile({ username, points, lockedPoints, allHistory, on
 
   const initials = username.slice(0, 2).toUpperCase();
   const avatarColor = tier.color;
+  const avatarColor = tier.color;
+const isBatman = document.documentElement.getAttribute("data-theme") === "batman";
 
   const tabs = ["stats", "history", "achievements"];
 
@@ -160,7 +162,7 @@ export default function Profile({ username, points, lockedPoints, allHistory, on
             fontSize: 26, fontWeight: 800, color: avatarColor,
             flexShrink: 0, boxShadow: `0 0 24px ${avatarColor}33`,
           }}>
-            {initials}
+         {isBatman ? "🦇" : initials}
           </div>
 
           <div style={{ flex: 1, minWidth: 0 }}>

@@ -5,6 +5,7 @@ const THEMES = [
   { id: "midnight", icon: "🌊", label: "Midnight Blue",  dot: "#38bdf8" },
   { id: "crimson",  icon: "🔥", label: "Crimson Red",    dot: "#ff3c5a" },
   { id: "comic",    icon: "💥", label: "Comic Book",     dot: "#e6b800" },
+  { id: "batman",   icon: "🦇", label: "Batman",         dot: "#F4C430" },
 ];
 
 export default function ThemeSwitcher() {
