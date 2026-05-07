@@ -120,7 +120,6 @@ export default function Profile({ username, points, lockedPoints, allHistory, on
 
   const initials = username.slice(0, 2).toUpperCase();
   const avatarColor = tier.color;
-  const avatarColor = tier.color;
 const isBatman = document.documentElement.getAttribute("data-theme") === "batman";
 
   const tabs = ["stats", "history", "achievements"];
