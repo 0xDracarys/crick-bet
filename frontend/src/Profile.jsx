@@ -1,3 +1,4 @@
+import ProfileMusicCard from "./components/ProfileMusicCard";
 import React, { useState, useEffect } from "react";
 
 const API = process.env.REACT_APP_API_URL;
@@ -243,7 +244,7 @@ export default function Profile({ username, points, lockedPoints, allHistory, on
           </div>
         )}
       </div>
-
+<ProfileMusicCard />
       {/* ── TABS ── */}
       <div style={{
         display: "flex", gap: 6, marginBottom: 18,
