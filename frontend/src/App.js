@@ -658,6 +658,9 @@
     const [animatePoints, setAnimatePoints] = useState(false);
     const [loading, setLoading]             = useState(false);
     const [error, setError]                 = useState("");
+    const [otpStep, setOtpStep]           = useState(false);
+    const [otpInput, setOtpInput]         = useState("");
+    const [pendingEmail, setPendingEmail] = useState("");
     const [prefilledMatch, setPrefilledMatch] = useState(null);
     const [matchStatus, setMatchStatus]     = useState(null);
     const [historyFilter, setHistoryFilter] = useState("all");
@@ -820,32 +823,41 @@
         if (res.ok) setLeaderboard(data.users);
       } catch (err) { console.error("Failed to fetch leaderboard", err); }
     };
-
-    const handleAuth = async () => {
-      if (!inputName.trim() || !inputPassword.trim()) { setError("Please enter both username and password!"); return; }
-      setLoading(true); setError("");
-      try {
-        const endpoint = authMode === "login" ? "/login" : "/register";
-        const res  = await fetch(`${API}${endpoint}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: inputName.trim(), password: inputPassword }),
-        });
-        const data = await res.json();
-        if (res.ok) {
-          setUsername(data.name); setPoints(data.points); setLockedPoints(data.lockedPoints || 0);
-          toast.success("Welcome back!", `Logged in as ${data.name} · ${data.points.toLocaleString()} pts`, 3000);
-          setScreen("home"); fetchLeaderboard();
-        } else {
-          setError(data.message || "Something went wrong!");
-          toast.error("Login Failed", data.message || "Check your credentials.");
-        }
-      } catch (err) {
-        setError("Can't connect to server. Make sure backend is running!");
-        toast.error("Connection Failed", "Can't reach the server. Check your connection.");
-      }
-      setLoading(false);
-    };
+const handleAuth = async () => {
+  if (!inputName.trim() || !inputPassword.trim()) { setError("Please enter both username and password!"); return; }
+  if (authMode === "login") {
+    setLoading(true); setError("");
+    try {
+      const res  = await fetch(`${API}/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: inputName.trim(), password: inputPassword }) });
+      const data = await res.json();
+      if (res.ok) { setUsername(data.name); setPoints(data.points); setLockedPoints(data.lockedPoints || 0); toast.success("Welcome back!", `Logged in as ${data.name}`, 3000); setScreen("home"); fetchLeaderboard(); }
+      else { setError(data.message || "Something went wrong!"); toast.error("Login Failed", data.message); }
+    } catch { setError("Can't connect to server!"); }
+    setLoading(false);
+    return;
+  }
+  if (!otpStep) {
+    if (!pendingEmail.trim()) { setError("Please enter your email!"); return; }
+    setLoading(true); setError("");
+    try {
+      const res  = await fetch(`${API}/register/send-otp`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: inputName.trim(), email: pendingEmail.trim(), password: inputPassword }) });
+      const data = await res.json();
+      if (res.ok) { setOtpStep(true); toast.info("OTP Sent", `Check ${pendingEmail} for your code`, 4000); }
+      else { setError(data.message || "Failed to send OTP"); }
+    } catch { setError("Can't connect to server!"); }
+    setLoading(false);
+    return;
+  }
+  setLoading(true); setError("");
+  try {
+    const res  = await fetch(`${API}/register/verify-otp`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: pendingEmail.trim(), otp: otpInput.trim() }) });
+    const data = await res.json();
+    if (res.ok) { setUsername(data.name); setPoints(data.points); setLockedPoints(data.lockedPoints || 0); toast.success("Account created!", `Welcome ${data.name} · 1000 pts`, 3000); setScreen("home"); fetchLeaderboard(); }
+    else { setError(data.message || "Wrong OTP"); }
+  } catch { setError("Can't connect to server!"); }
+  setLoading(false);
+};
+    
 
     const handleBetOnMatch = (matchInfo) => {
       const iplSport = { id: "cricket", name: "Cricket", emoji: "🏏", teams: matchInfo.teams };
@@ -1035,10 +1047,30 @@
                 <button className={authMode === "login" ? "active" : ""} onClick={() => { setAuthMode("login"); setError(""); }}>Login</button>
                 <button className={authMode === "register" ? "active" : ""} onClick={() => { setAuthMode("register"); setError(""); }}>Register</button>
               </div>
-              <input className="login-input" placeholder="Username" value={inputName}
-                onChange={e => setInputName(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAuth()} />
-              <input className="login-input" type="password" placeholder="Password" value={inputPassword}
-                onChange={e => setInputPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAuth()} />
+             <input className="login-input" placeholder="Username" value={inputName}
+  onChange={e => setInputName(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAuth()} />
+
+{authMode === "register" && !otpStep && (
+  <input className="login-input" placeholder="Email" type="email" value={pendingEmail}
+    onChange={e => setPendingEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAuth()} />
+)}
+
+{!otpStep && (
+  <input className="login-input" type="password" placeholder="Password" value={inputPassword}
+    onChange={e => setInputPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAuth()} />
+)}
+
+{authMode === "register" && otpStep && (
+  <div style={{ textAlign: "center", color: "#aaa", fontSize: 13 }}>
+    📧 OTP sent to <strong style={{ color: "#f4c430" }}>{pendingEmail}</strong>
+  </div>
+)}
+
+{authMode === "register" && otpStep && (
+  <input className="login-input" placeholder="Enter 6-digit OTP" value={otpInput}
+    onChange={e => setOtpInput(e.target.value)} onKeyDown={e => e.key === "Enter" && handleAuth()}
+    style={{ letterSpacing: 8, fontSize: 22, textAlign: "center" }} />
+)}
               {error && <div className="error-msg">{error}</div>}
               <button className="btn-primary" onClick={handleAuth} disabled={loading}>
                 {loading ? <LoadingDots /> : authMode === "login" ? "Login →" : "Create Account →"}
