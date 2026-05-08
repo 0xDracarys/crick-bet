@@ -1108,3 +1108,144 @@
   font-size: 9px;
   font-weight: 700;
 }
+/* ── MOBILE IMPROVEMENTS ─────────────────────────────────── */
+@media (max-width: 600px) {
+
+  /* Safe area for iPhone home bar */
+  .bottom-nav {
+    height: auto;
+    padding-bottom: env(safe-area-inset-bottom, 8px);
+    padding-top: 8px;
+  }
+
+  /* Give content breathing room above bottom nav */
+  .screen {
+    padding: 1rem 1rem 100px;
+  }
+
+  /* Tighter hero on mobile */
+  .hero {
+    margin-bottom: 1.5rem;
+  }
+
+  .hero-title {
+    font-size: 2.8rem;
+  }
+
+  .hero-sub {
+    font-size: 0.9rem;
+  }
+
+  /* Stack hero buttons vertically */
+  .hero .btn-primary {
+    width: 100%;
+    padding: 0.85rem 1rem;
+  }
+
+  /* Nav: only show logo + points + logout */
+  .nav {
+    padding: 0 1rem;
+  }
+
+  .nav-right .logout-btn {
+    padding: 0.4rem 0.6rem;
+    font-size: 0.75rem;
+  }
+
+  /* Points badge smaller on mobile */
+  .nav-points {
+    padding: 0.35rem 0.6rem;
+  }
+
+  .points-value {
+    font-size: 0.85rem;
+  }
+
+  .points-label {
+    display: none;
+  }
+
+  /* Sports grid: 2 columns already set, just tighten */
+  .sports-grid {
+    gap: 0.6rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .sport-card {
+    padding: 1rem 0.75rem;
+  }
+
+  .sport-emoji {
+    font-size: 2rem;
+  }
+
+  /* Bet screen: stack input row */
+  .input-row {
+    flex-direction: column;
+  }
+
+  .bet-btn {
+    width: 100%;
+  }
+
+  .amount-row {
+    gap: 0.4rem;
+  }
+
+  .amount-chip {
+    padding: 0.45rem 0.75rem;
+    font-size: 0.85rem;
+  }
+
+  /* Team grid full width */
+  .team-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+  }
+
+  .team-card {
+    padding: 0.9rem 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  /* Leaderboard: hide points bar, compress */
+  .leaderboard-row {
+    padding: 0.75rem 1rem;
+    gap: 0.6rem;
+  }
+
+  /* History: flex instead of grid on mobile */
+  .history-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.85rem 1rem;
+  }
+
+  /* Screen title smaller */
+  .screen-title {
+    font-size: 1.8rem;
+    margin-bottom: 1.25rem;
+  }
+
+  /* Login box tighter */
+  .login-box {
+    padding: 2rem 1.25rem;
+  }
+
+  .login-title {
+    font-size: 2rem;
+  }
+
+  /* Bet result popup fits screen */
+  .bet-result {
+    width: 90vw;
+    padding: 2rem 1.5rem;
+  }
+
+  /* Empty state less padding */
+  .empty-state {
+    padding: 2.5rem 1rem;
+    font-size: 0.95rem;
+  }
+}

@@ -1,4 +1,5 @@
 import ProfileMusicCard from "./components/ProfileMusicCard";
+import ThemeSwitcher from "./ThemeSwitcher";
 import React, { useState, useEffect } from "react";
 
 const API = process.env.REACT_APP_API_URL;
@@ -245,26 +246,31 @@ const isBatman = document.documentElement.getAttribute("data-theme") === "batman
           </div>
         )}
       </div>
-<ProfileMusicCard />
-      {/* ── TABS ── */}
-      <div style={{
-        display: "flex", gap: 6, marginBottom: 18,
-        background: "rgba(255,255,255,0.03)",
-        border: "1px solid rgba(255,255,255,0.07)",
-        borderRadius: 12, padding: 4,
-      }}>
-        {tabs.map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)} style={{
-            flex: 1, padding: "8px 0", borderRadius: 9, border: "none",
-            background: activeTab === tab ? "rgba(255,255,255,0.1)" : "transparent",
-            color: activeTab === tab ? "#fff" : "#555",
-            fontWeight: activeTab === tab ? 700 : 400,
-            fontSize: 13, cursor: "pointer", transition: "all 0.15s", textTransform: "capitalize",
-          }}>
-            {tab === "stats" ? "📊 Stats" : tab === "history" ? "📜 History" : "🏅 Badges"}
-          </button>
-        ))}
-      </div>
+     <ProfileMusicCard />
+
+{/* ── THEME SWITCHER (mobile-friendly) ── */}
+<div style={{
+  display: "flex", alignItems: "center", justifyContent: "space-between",
+  background: "rgba(255,255,255,0.025)",
+  border: "1px solid rgba(255,255,255,0.07)",
+  borderRadius: 14,
+  padding: "14px 18px",
+  marginBottom: 18,
+}}>
+  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+    <div style={{
+      width: 38, height: 38, borderRadius: "50%",
+      background: "rgba(255,255,255,0.06)",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      fontSize: 18,
+    }}>🎨</div>
+    <div>
+      <div style={{ fontSize: 14, fontWeight: 700, color: "#e6edf3" }}>Theme</div>
+      <div style={{ fontSize: 11, color: "#555", marginTop: 1 }}>Switch app appearance</div>
+    </div>
+  </div>
+  <ThemeSwitcher />
+</div>
 
       {/* ── STATS TAB ── */}
       {activeTab === "stats" && (
