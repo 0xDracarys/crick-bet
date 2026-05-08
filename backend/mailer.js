@@ -1,21 +1,10 @@
-const nodemailer = require("nodemailer");
+const { Resend } = require("resend");
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 async function sendOtp(email, otp) {
-  const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    auth: {
-      user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_PASS,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-  });
-
-  await transporter.sendMail({
-    from: `"FantasyBet" <${process.env.GMAIL_USER}>`,
+  await resend.emails.send({
+    from: "FantasyBet <onboarding@resend.dev>",
     to: email,
     subject: "Your FantasyBet OTP",
     html: `
