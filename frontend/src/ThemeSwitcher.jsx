@@ -6,7 +6,9 @@ const THEMES = [
   { id: "crimson",  icon: "🔥", label: "Crimson Red",    dot: "#ff3c5a" },
   { id: "comic",    icon: "💥", label: "Comic Book",     dot: "#e6b800" },
   { id: "batman",   icon: "🦇", label: "Batman",         dot: "#F4C430" },
-  { id: "spiderverse", label: "Spider-Verse", dot: "#ffec00", emoji: "🕷️" }
+  { id: "spiderverse", label: "Spider-Verse", dot: "#ffec00", emoji: "🕷️" },
+  { id: "naruto",     icon: "🍥", label: "Naruto",       dot: "#ff6b00" },
+{ id: "dragonball", icon: "🐉", label: "Dragon Ball",  dot: "#facc15" },
 ];
 
 export default function ThemeSwitcher() {
