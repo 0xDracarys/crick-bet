@@ -10,6 +10,7 @@ const THEMES = [
   { id: "naruto",     icon: "🍥", label: "Naruto",       dot: "#ff6b00" },
 { id: "dragonball", icon: "🐉", label: "Dragon Ball",  dot: "#facc15" },
 { id: "ghost", icon: "👻", label: "Ghost", dot: "#a884f3" },
+{ id: "pirates", icon: "🏴‍☠️", label: "Pirates", dot: "#c8922a" },
 ];
 
 export default function ThemeSwitcher() {
