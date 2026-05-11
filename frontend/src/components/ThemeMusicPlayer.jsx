@@ -28,6 +28,15 @@ const TRACKS = [
     accentColor: "#D97706",
     waveHeights: [10, 20, 6, 24, 12, 18, 8, 22, 10, 16],
   },
+  {
+    id: "track4",
+    icon: "🎰",
+    name: "Track 4",
+    vibe: "Lucky vibes",
+    url: "/audio/track4.mp3",
+    accentColor: "#16A34A",
+    waveHeights: [16, 10, 22, 8, 20, 14, 26, 10, 18, 12],
+  },
 ];
 
 // Export TRACKS so the profile page can read track names/icons
@@ -151,13 +160,11 @@ export default function ThemeMusicPlayer() {
   const [duration,    setDuration]    = useState(0);
   const [showDrawer,  setShowDrawer]  = useState(false);
   const [isLoading,   setIsLoading]   = useState(false);
-  // NEW: enabled state — reads from localStorage so profile toggle can sync
   const [enabled,     setEnabled]     = useState(readEnabled);
 
   const audioRef  = useRef(null);
   const tickerRef = useRef(null);
 
-  // ── Setup audio element once ──────────────────────────────────────────────
   useEffect(() => {
     const audio = new Audio();
     audio.preload = "metadata";
@@ -176,13 +183,11 @@ export default function ThemeMusicPlayer() {
     };
   }, []);
 
-  // ── Volume / mute sync ────────────────────────────────────────────────────
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = isMuted ? 0 : volume;
     localStorage.setItem(LS_VOLUME, volume);
   }, [volume, isMuted]);
 
-  // ── Progress ticker ───────────────────────────────────────────────────────
   useEffect(() => {
     clearInterval(tickerRef.current);
     if (isPlaying) {
@@ -196,7 +201,6 @@ export default function ThemeMusicPlayer() {
     return () => clearInterval(tickerRef.current);
   }, [isPlaying]);
 
-  // ── NEW: Listen for storage events from other tabs / profile page ─────────
   useEffect(() => {
     const onStorage = (e) => {
       if (e.key === LS_ENABLED) {
@@ -220,7 +224,6 @@ export default function ThemeMusicPlayer() {
     return () => window.removeEventListener("storage", onStorage);
   }, []);
 
-  // ── NEW: Also poll localStorage every 500ms for same-tab profile changes ──
   useEffect(() => {
     const poll = setInterval(() => {
       const on = readEnabled();
@@ -250,7 +253,6 @@ export default function ThemeMusicPlayer() {
     return () => clearInterval(poll);
   }, []);
 
-  // ─────────────────────────────────────────────────────────────────────────
   const loadAndPlay = useCallback((track) => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -301,7 +303,6 @@ export default function ThemeMusicPlayer() {
     return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
   };
 
-  // ── If disabled from profile page, render nothing (but keep mounted) ──────
   if (!enabled) return <div style={{ height: 0 }} />;
 
   const accent = activeTrack.accentColor;
