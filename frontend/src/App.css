@@ -919,6 +919,181 @@
   background: #facc15;
   color: #000;
 }
+/* ── GHOST THEME ─────────────────────────────────────────── */
+[data-theme="ghost"] {
+  --bg:           #0a0a0f;
+  --surface:      #12101a;
+  --surface2:     #1a1726;
+  --border:       #2e2650;
+  --text:         #e8dff5;
+  --muted:        #6b5f8a;
+  --accent:       #a884f3;
+  --accent2:      #7c5cbf;
+  --nav-bg:       rgba(8,6,15,0.96);
+  --grid-color:   rgba(168,132,243,0.04);
+  --glow-color:   rgba(124,92,191,0.1);
+  --input-shadow: rgba(168,132,243,0.18);
+  --btn-shadow:   rgba(168,132,243,0.4);
+  --sport-shadow: rgba(168,132,243,0.12);
+  --green:        #1abc9c;
+  --red:          #e74c3c;
+}
+
+[data-theme="ghost"] .bg-grid {
+  background-image:
+    radial-gradient(circle, rgba(168,132,243,0.07) 1px, transparent 1px),
+    radial-gradient(circle, rgba(124,92,191,0.04) 1px, transparent 1px);
+  background-size: 28px 28px, 14px 14px;
+  background-position: 0 0, 7px 7px;
+}
+
+[data-theme="ghost"] .bg-glow {
+  background: radial-gradient(ellipse, rgba(124,92,191,0.12) 0%, transparent 70%);
+  animation: ghostDrift 4s ease-in-out infinite;
+}
+
+@keyframes ghostDrift {
+  0%,100% { transform: translateX(-50%) translateY(0);   opacity: 0.7; }
+  50%      { transform: translateX(-50%) translateY(-20px); opacity: 1; }
+}
+
+[data-theme="ghost"] .nav {
+  border-bottom: 1px solid #2e265044;
+  background: rgba(6,4,12,0.97);
+}
+
+[data-theme="ghost"] .nav-logo::before { content: "👻 "; }
+
+[data-theme="ghost"] .nav-logo {
+  color: #a884f3;
+  text-shadow: 0 0 20px rgba(168,132,243,0.5), 0 0 40px rgba(124,92,191,0.3);
+  animation: haunt 5s ease-in-out infinite;
+}
+
+@keyframes haunt {
+  0%,85%,100% { text-shadow: 0 0 20px rgba(168,132,243,0.5), 0 0 40px rgba(124,92,191,0.3); opacity: 1; }
+  90%          { text-shadow: 0 0 4px rgba(168,132,243,0.2); opacity: 0.7; }
+}
+
+[data-theme="ghost"] .nav-links button.active {
+  background: rgba(168,132,243,0.1);
+  color: #a884f3;
+  border: 1px solid rgba(168,132,243,0.25);
+  border-radius: 6px;
+}
+
+[data-theme="ghost"] .nav-points {
+  border: 1px solid rgba(168,132,243,0.3);
+  background: rgba(168,132,243,0.07);
+}
+
+[data-theme="ghost"] .nav-points.pulse {
+  border-color: #a884f3;
+  box-shadow: 0 0 20px rgba(168,132,243,0.3);
+}
+
+[data-theme="ghost"] .hero-badge {
+  background: rgba(168,132,243,0.1);
+  border: 1px solid rgba(168,132,243,0.3);
+  color: #a884f3;
+}
+
+[data-theme="ghost"] .btn-primary {
+  background: #a884f3;
+  color: #000;
+  font-weight: 900;
+  letter-spacing: 1px;
+}
+
+[data-theme="ghost"] .btn-primary:hover {
+  box-shadow: 0 8px 30px rgba(168,132,243,0.45);
+  filter: brightness(1.1);
+}
+
+[data-theme="ghost"] .sport-card:hover {
+  border-color: #a884f3;
+  box-shadow: 0 16px 48px rgba(168,132,243,0.15);
+}
+
+[data-theme="ghost"] .stat-box:hover {
+  border-color: #a884f3;
+  box-shadow: 0 8px 24px rgba(168,132,243,0.12);
+}
+
+[data-theme="ghost"] .pill.selected {
+  background: rgba(168,132,243,0.14);
+  border-color: #a884f3;
+  color: #a884f3;
+}
+
+[data-theme="ghost"] .team-card.selected {
+  background: rgba(168,132,243,0.14);
+  border-color: #a884f3;
+  color: #a884f3;
+}
+
+[data-theme="ghost"] .bet-input:focus {
+  border-color: #a884f3;
+  box-shadow: 0 0 0 3px rgba(168,132,243,0.15);
+}
+
+[data-theme="ghost"] .login-box {
+  border-color: rgba(168,132,243,0.25);
+  box-shadow: 0 0 60px rgba(124,92,191,0.08);
+}
+
+[data-theme="ghost"] .login-input:focus {
+  border-color: #a884f3;
+  box-shadow: 0 0 0 3px rgba(168,132,243,0.15);
+}
+
+[data-theme="ghost"] .leaderboard-row.you {
+  border-color: #a884f3;
+  background: rgba(168,132,243,0.04);
+  box-shadow: 0 0 24px rgba(168,132,243,0.08);
+}
+
+[data-theme="ghost"] .points-fill {
+  background: linear-gradient(90deg, #7c5cbf, #a884f3, #c9b8e8);
+  background-size: 200% 100%;
+  animation: spiritFlow 2s linear infinite;
+}
+
+@keyframes spiritFlow {
+  0%   { background-position: 0%   50%; }
+  100% { background-position: 200% 50%; }
+}
+
+[data-theme="ghost"] .history-row.win  { border-left: 3px solid var(--green) !important; background: rgba(26,188,156,0.04); }
+[data-theme="ghost"] .history-row.lose { border-left: 3px solid var(--red)   !important; background: rgba(231,76,60,0.04);  }
+
+[data-theme="ghost"] .bet-result.win  { border-color: var(--green); box-shadow: 0 0 60px rgba(26,188,156,0.2);  }
+[data-theme="ghost"] .bet-result.lose { border-color: var(--red);   box-shadow: 0 0 60px rgba(231,76,60,0.15); }
+
+[data-theme="ghost"] .theme-dropdown {
+  background: #12101a;
+  border: 1px solid rgba(168,132,243,0.25);
+}
+
+[data-theme="ghost"] .theme-option:hover {
+  background: rgba(168,132,243,0.08);
+  color: #a884f3;
+}
+
+[data-theme="ghost"] .auth-tabs button.active {
+  background: #a884f3;
+  color: #000;
+}
+
+[data-theme="ghost"] .bottom-nav {
+  border-top: 1px solid #2e265044;
+  background: rgba(6,4,12,0.97);
+}
+
+[data-theme="ghost"] .empty-state {
+  border-color: #2e2650;
+  background: #12101a;
+}
 
 /* ── BUTTONS ─────────────────────────────────────────────── */
 .btn-primary {
