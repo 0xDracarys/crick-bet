@@ -44,7 +44,7 @@ function H2HStrip({ team1, team2 }) {
       display: "flex", flexDirection: "column", alignItems: "center",
       gap: 4, margin: "8px 0 4px",
     }}>
-      <span style={{ fontSize: 9, color: "#b4b2a9", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+      <span style={{ fontSize: 9, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>
         Last 3 H2H · {team1} view
       </span>
       <div style={{ display: "flex", gap: 5 }}>
@@ -61,7 +61,7 @@ function H2HStrip({ team1, team2 }) {
           </div>
         ))}
       </div>
-      <span style={{ fontSize: 10, color: "#888780" }}>{h2h.summary}</span>
+      <span style={{ fontSize: 10, color: "var(--muted)" }}>{h2h.summary}</span>
     </div>
   );
 }
@@ -70,20 +70,20 @@ function H2HStrip({ team1, team2 }) {
 function WinBar({ team1, team2, pct1, pct2, label = "Win Probability" }) {
   return (
     <div style={{ marginBottom: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#888780", marginBottom: 3 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--muted)", marginBottom: 3 }}>
         <span>{team1} {pct1}%</span>
-        <span style={{ color: "#b4b2a9" }}>{label}</span>
+        <span style={{ color: "var(--muted)" }}>{label}</span>
         <span>{pct2}% {team2}</span>
       </div>
-      <div style={{ display: "flex", height: 5, borderRadius: 99, overflow: "hidden", background: "#e8e6dc" }}>
-        <div style={{ width: `${pct1}%`, background: TEAM_COLORS[team1]?.bg || "#7F77DD", transition: "width 0.5s" }} />
-        <div style={{ width: `${pct2}%`, background: TEAM_COLORS[team2]?.bg || "#d3d1c7" }} />
+      <div style={{ display: "flex", height: 5, borderRadius: 99, overflow: "hidden", background: "var(--border)" }}>
+        <div style={{ width: `${pct1}%`, background: TEAM_COLORS[team1]?.bg || "var(--accent)", transition: "width 0.5s" }} />
+        <div style={{ width: `${pct2}%`, background: TEAM_COLORS[team2]?.bg || "var(--border)" }} />
       </div>
     </div>
   );
 }
 
-// ── Existing helpers (unchanged) ────────────────────────────────────────────
+// ── Helpers ─────────────────────────────────────────────────────────────────
 function getOddsLabel(odds, team1, team2) {
   if (!odds) return { [team1]: null, [team2]: null };
   const o1 = odds[team1], o2 = odds[team2];
@@ -186,19 +186,19 @@ export default function Matches({ onBetOnMatch, onFantasy11 }) {
   const s = {
     wrap:        { padding: "24px 0", maxWidth: 700, margin: "0 auto" },
     header:      { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 },
-    title:       { fontSize: 22, fontWeight: 500, color: "var(--color-text-primary, #fff)" },
-    sub:         { fontSize: 13, color: "#888780", marginBottom: 16 },
+    title:       { fontSize: 22, fontWeight: 500, color: "var(--text)" },
+    sub:         { fontSize: 13, color: "var(--muted)", marginBottom: 16 },
     filterRow:   { display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" },
     filterBtn:   (active) => ({
       padding: "5px 14px", borderRadius: 99, border: "0.5px solid",
-      borderColor: active ? "#7F77DD" : "#d3d1c7",
-      background:  active ? "#EEEDFE" : "transparent",
-      color:       active ? "#3C3489" : "#888780",
+      borderColor: active ? "var(--accent)" : "var(--border)",
+      background:  active ? "var(--surface2)" : "transparent",
+      color:       active ? "var(--accent)" : "var(--muted)",
       cursor: "pointer", fontSize: 12, fontWeight: active ? 500 : 400,
     }),
     card:        (status) => ({
-      background:   status === "live" ? "#E1F5EE" : "#fff",
-      border:       status === "live" ? "1px solid #1D9E75" : "0.5px solid #d3d1c7",
+      background:   status === "live" ? "var(--surface2)" : "var(--surface)",
+      border:       status === "live" ? "1px solid var(--accent)" : "0.5px solid var(--border)",
       borderRadius: 12, marginBottom: 10,
       overflow:     "hidden",
     }),
@@ -210,36 +210,37 @@ export default function Matches({ onBetOnMatch, onFantasy11 }) {
     topRow:      { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
     badge:       (status) => {
       const map = {
-        live:      { bg: "#E1F5EE", color: "#085041" },
-        upcoming:  { bg: "#EEEDFE", color: "#3C3489" },
-        completed: { bg: "#F1EFE8", color: "#5F5E5A" },
+        live:      { bg: "rgba(29,158,117,0.15)", color: "var(--green)" },
+        upcoming:  { bg: "var(--surface2)",       color: "var(--accent)" },
+        completed: { bg: "var(--surface2)",        color: "var(--muted)" },
       };
       const st = map[status] || map.upcoming;
       return { fontSize: 10, fontWeight: 600, padding: "2px 10px", borderRadius: 99, background: st.bg, color: st.color, textTransform: "uppercase", letterSpacing: "0.06em" };
     },
-    matchNum:    { fontSize: 11, color: "#b4b2a9" },
+    matchNum:    { fontSize: 11, color: "var(--muted)" },
     teamsRow:    { display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 10, marginBottom: 12 },
     teamBox:     (side) => ({ flex: 1, display: "flex", flexDirection: "column", alignItems: side === "left" ? "flex-start" : "flex-end" }),
     teamBadge:   (team) => ({
       display: "inline-flex", alignItems: "center", padding: "6px 14px", borderRadius: 8,
-      background: TEAM_COLORS[team]?.light || "#F1EFE8", color: TEAM_COLORS[team]?.bg || "#444441",
+      background: TEAM_COLORS[team]?.light || "var(--surface2)",
+      color:      TEAM_COLORS[team]?.bg    || "var(--text)",
       fontWeight: 600, fontSize: 16,
     }),
-    vs:          { fontSize: 11, color: "#b4b2a9", fontWeight: 500, padding: "0 8px", paddingTop: 10 },
-    meta:        { fontSize: 12, color: "#888780", marginBottom: 8 },
-    oddsRow:     { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, padding: "8px 12px", borderRadius: 8, background: "#F8F7F3", border: "0.5px solid #e8e6dc" },
-    payout:      { fontSize: 11, color: "#888780", textAlign: "center" },
-    betBtn:      { flex: 1, padding: "10px", borderRadius: 8, border: "none", background: "#7F77DD", color: "#fff", cursor: "pointer", fontSize: 14, fontWeight: 500 },
-    f11Btn:      { flex: 1, padding: "10px", borderRadius: 8, border: "none", background: "#ffd166", color: "#000", cursor: "pointer", fontSize: 14, fontWeight: 600 },
-    f11ViewBtn:  { width: "100%", padding: "10px", borderRadius: 8, border: "1px solid #ffd16688", background: "#ffd16615", color: "#8a6a00", cursor: "pointer", fontSize: 14, fontWeight: 600, marginTop: 8 },
-    liveLockBtn: { width: "100%", padding: "10px", borderRadius: 8, border: "1px solid #F09595", background: "#FCEBEB", color: "#A32D2D", fontSize: 13, fontWeight: 500, cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 },
-    liveDotBtn:  { width: 8, height: 8, borderRadius: "50%", background: "#E24B4A", display: "inline-block", animation: "blink 1s infinite" },
-    disabledBtn: { width: "100%", padding: "10px", borderRadius: 8, border: "0.5px solid #d3d1c7", background: "transparent", color: "#b4b2a9", fontSize: 13, cursor: "default" },
-    liveDot:     { display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: "#1D9E75", marginRight: 5 },
-    empty:       { textAlign: "center", padding: 48, color: "#888780", fontSize: 14, background: "#F1EFE8", borderRadius: 12 },
-    refreshBtn:  { padding: "6px 12px", borderRadius: 8, border: "0.5px solid #d3d1c7", background: "transparent", color: "#444441", cursor: "pointer", fontSize: 12 },
+    vs:          { fontSize: 11, color: "var(--muted)", fontWeight: 500, padding: "0 8px", paddingTop: 10 },
+    meta:        { fontSize: 12, color: "var(--muted)", marginBottom: 8 },
+    oddsRow:     { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, padding: "8px 12px", borderRadius: 8, background: "var(--surface2)", border: "0.5px solid var(--border)" },
+    payout:      { fontSize: 11, color: "var(--muted)", textAlign: "center" },
+    betBtn:      { flex: 1, padding: "10px", borderRadius: 8, border: "none", background: "var(--accent)", color: "#000", cursor: "pointer", fontSize: 14, fontWeight: 500 },
+    f11Btn:      { flex: 1, padding: "10px", borderRadius: 8, border: "none", background: "var(--accent2)", color: "#000", cursor: "pointer", fontSize: 14, fontWeight: 600 },
+    f11ViewBtn:  { width: "100%", padding: "10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--accent)", cursor: "pointer", fontSize: 14, fontWeight: 600, marginTop: 8 },
+    liveLockBtn: { width: "100%", padding: "10px", borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--red)", fontSize: 13, fontWeight: 500, cursor: "not-allowed", display: "flex", alignItems: "center", justifyContent: "center", gap: 8 },
+    liveDotBtn:  { width: 8, height: 8, borderRadius: "50%", background: "var(--red)", display: "inline-block", animation: "blink 1s infinite" },
+    disabledBtn: { width: "100%", padding: "10px", borderRadius: 8, border: "0.5px solid var(--border)", background: "transparent", color: "var(--muted)", fontSize: 13, cursor: "default" },
+    liveDot:     { display: "inline-block", width: 7, height: 7, borderRadius: "50%", background: "var(--green)", marginRight: 5 },
+    empty:       { textAlign: "center", padding: 48, color: "var(--muted)", fontSize: 14, background: "var(--surface)", borderRadius: 12 },
+    refreshBtn:  { padding: "6px 12px", borderRadius: 8, border: "0.5px solid var(--border)", background: "transparent", color: "var(--text)", cursor: "pointer", fontSize: 12 },
     btnRow:      { display: "flex", gap: 8 },
-    oddsErrBanner: { fontSize: 11, color: "#A32D2D", background: "#FCEBEB", border: "0.5px solid #F09595", borderRadius: 6, padding: "4px 10px", marginBottom: 12, textAlign: "center" },
+    oddsErrBanner: { fontSize: 11, color: "var(--red)", background: "var(--surface2)", border: "0.5px solid var(--border)", borderRadius: 6, padding: "4px 10px", marginBottom: 12, textAlign: "center" },
   };
 
   return (
@@ -254,7 +255,7 @@ export default function Matches({ onBetOnMatch, onFantasy11 }) {
       </div>
       <div style={s.sub}>
         {matches.length} matches · {liveCount > 0 ? `${liveCount} live now` : "IPL 2026 season"}
-        {oddsLoading && <span style={{ marginLeft: 8, color: "#7F77DD" }}>· fetching odds...</span>}
+        {oddsLoading && <span style={{ marginLeft: 8, color: "var(--accent)" }}>· fetching odds...</span>}
       </div>
 
       {oddsError && !oddsLoading && (
@@ -274,7 +275,7 @@ export default function Matches({ onBetOnMatch, onFantasy11 }) {
 
       {loading && <div style={s.empty}>Loading matches...</div>}
       {error && !loading && (
-        <div style={{ ...s.empty, background: "#FCEBEB", color: "#A32D2D" }}>
+        <div style={{ ...s.empty, background: "var(--surface2)", color: "var(--red)" }}>
           {error}<br />
           <button onClick={fetchMatches} style={{ marginTop: 12, ...s.refreshBtn }}>Try Again</button>
         </div>
@@ -341,7 +342,7 @@ export default function Matches({ onBetOnMatch, onFantasy11 }) {
                 </div>
               </div>
 
-              {/* ── Win probability bar (upcoming: from odds, completed: from H2H final split) ── */}
+              {/* ── Win probability bar ── */}
               {match.status === "upcoming" && odds && (
                 <WinBar
                   team1={match.team1} team2={match.team2}
@@ -364,17 +365,17 @@ export default function Matches({ onBetOnMatch, onFantasy11 }) {
               {odds && match.status === "upcoming" && (
                 <div style={s.oddsRow}>
                   <div style={s.payout}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#444441" }}>Bet 100 → Win</div>
-                    <div style={{ fontSize: 13, color: "#0F6E56", fontWeight: 700 }}>{Math.floor(100 * odds[match.team1])} pts</div>
-                    <div style={{ fontSize: 10, color: "#888780" }}>on {match.team1}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}>Bet 100 → Win</div>
+                    <div style={{ fontSize: 13, color: "var(--green)", fontWeight: 700 }}>{Math.floor(100 * odds[match.team1])} pts</div>
+                    <div style={{ fontSize: 10, color: "var(--muted)" }}>on {match.team1}</div>
                   </div>
-                  <div style={{ width: 1, background: "#e8e6dc", alignSelf: "stretch" }} />
-                  <div style={{ fontSize: 11, color: "#888780", textAlign: "center", padding: "0 8px" }}>📊 Live odds<br />from bookmakers</div>
-                  <div style={{ width: 1, background: "#e8e6dc", alignSelf: "stretch" }} />
+                  <div style={{ width: 1, background: "var(--border)", alignSelf: "stretch" }} />
+                  <div style={{ fontSize: 11, color: "var(--muted)", textAlign: "center", padding: "0 8px" }}>📊 Live odds<br />from bookmakers</div>
+                  <div style={{ width: 1, background: "var(--border)", alignSelf: "stretch" }} />
                   <div style={s.payout}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: "#444441" }}>Bet 100 → Win</div>
-                    <div style={{ fontSize: 13, color: "#0F6E56", fontWeight: 700 }}>{Math.floor(100 * odds[match.team2])} pts</div>
-                    <div style={{ fontSize: 10, color: "#888780" }}>on {match.team2}</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}>Bet 100 → Win</div>
+                    <div style={{ fontSize: 13, color: "var(--green)", fontWeight: 700 }}>{Math.floor(100 * odds[match.team2])} pts</div>
+                    <div style={{ fontSize: 10, color: "var(--muted)" }}>on {match.team2}</div>
                   </div>
                 </div>
               )}
