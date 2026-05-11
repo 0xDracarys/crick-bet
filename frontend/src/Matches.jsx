@@ -53,9 +53,9 @@ function H2HStrip({ team1, team2 }) {
             width: 24, height: 24, borderRadius: "50%",
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 9, fontWeight: 600,
-            background: r === 1 ? "#E1F5EE" : "#FCEBEB",
-            color:      r === 1 ? "#0F6E56" : "#A32D2D",
-            border:     `1px solid ${r === 1 ? "#5DCAA540" : "#F0959540"}`,
+            background: r === 1 ? "rgba(29,158,117,0.15)" : "rgba(231,76,60,0.15)",
+            color:      r === 1 ? "var(--green)" : "var(--red)",
+            border:     `1px solid ${r === 1 ? "rgba(29,158,117,0.3)" : "rgba(231,76,60,0.3)"}`,
           }}>
             {r === 1 ? "W" : "L"}
           </div>
@@ -75,9 +75,9 @@ function WinBar({ team1, team2, pct1, pct2, label = "Win Probability" }) {
         <span style={{ color: "var(--muted)" }}>{label}</span>
         <span>{pct2}% {team2}</span>
       </div>
-      <div style={{ display: "flex", height: 5, borderRadius: 99, overflow: "hidden", background: "var(--border)" }}>
-        <div style={{ width: `${pct1}%`, background: TEAM_COLORS[team1]?.bg || "var(--accent)", transition: "width 0.5s" }} />
-        <div style={{ width: `${pct2}%`, background: TEAM_COLORS[team2]?.bg || "var(--border)" }} />
+      <div style={{ display: "flex", height: 5, borderRadius: 99, overflow: "hidden", background: "var(--surface2)" }}>
+        <div style={{ width: `${pct1}%`, background: TEAM_COLORS[team1]?.bg || "#7F77DD", transition: "width 0.5s" }} />
+        <div style={{ width: `${pct2}%`, background: TEAM_COLORS[team2]?.bg || "#d3d1c7" }} />
       </div>
     </div>
   );
