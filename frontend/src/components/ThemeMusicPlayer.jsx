@@ -33,7 +33,7 @@ const TRACKS = [
     icon: "🎰",
     name: "Track 4",
     vibe: "Lucky vibes",
-    url: "/audio/track4.mp3",
+    url: "/Music/track4.mp3",
     accentColor: "#16A34A",
     waveHeights: [16, 10, 22, 8, 20, 14, 26, 10, 18, 12],
   },
