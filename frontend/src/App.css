@@ -1897,6 +1897,259 @@
   font-size: 9px;
   font-weight: 700;
 }
+/* ── GHOST IMMERSIVE ─────────────────────────────────────── */
+
+/* Floating orbs */
+[data-theme="ghost"] .bg-grid {
+  background-image:
+    radial-gradient(circle, rgba(168,132,243,0.08) 1px, transparent 1px),
+    radial-gradient(circle, rgba(124,92,191,0.05) 1px, transparent 1px);
+  background-size: 28px 28px, 14px 14px;
+  background-position: 0 0, 7px 7px;
+}
+
+/* Parchment-like card texture */
+[data-theme="ghost"] .sport-card,
+[data-theme="ghost"] .stat-box,
+[data-theme="ghost"] .leaderboard-row,
+[data-theme="ghost"] .history-row,
+[data-theme="ghost"] .login-box {
+  background-image: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(168,132,243,0.015) 2px,
+    rgba(168,132,243,0.015) 4px
+  );
+}
+
+/* Cards float on hover */
+[data-theme="ghost"] .sport-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 20px 60px rgba(168,132,243,0.2),
+              0 0 0 1px rgba(168,132,243,0.3);
+  animation: ghostFloat 3s ease-in-out infinite;
+}
+
+@keyframes ghostFloat {
+  0%,100% { transform: translateY(-8px); }
+  50%      { transform: translateY(-14px); }
+}
+
+/* Creepy scanline overlay on nav */
+[data-theme="ghost"] .nav::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(168,132,243,0.02) 3px,
+    rgba(168,132,243,0.02) 4px
+  );
+  pointer-events: none;
+}
+
+/* Hero title flicker */
+[data-theme="ghost"] .hero-title {
+  animation: titleFlicker 8s ease-in-out infinite;
+}
+
+@keyframes titleFlicker {
+  0%,90%,100% { opacity: 1; }
+  92%          { opacity: 0.6; }
+  94%          { opacity: 1; }
+  96%          { opacity: 0.4; }
+  98%          { opacity: 1; }
+}
+
+/* Glowing accent text */
+[data-theme="ghost"] .accent {
+  text-shadow: 0 0 20px rgba(168,132,243,0.6),
+               0 0 40px rgba(124,92,191,0.3);
+}
+
+/* Login box — haunted mirror effect */
+[data-theme="ghost"] .login-box {
+  border: 1px solid rgba(168,132,243,0.3);
+  box-shadow:
+    0 0 60px rgba(124,92,191,0.12),
+    0 0 120px rgba(168,132,243,0.06),
+    inset 0 1px 0 rgba(168,132,243,0.1);
+}
+
+/* Stat numbers glow */
+[data-theme="ghost"] .stat-num {
+  text-shadow: 0 0 20px rgba(168,132,243,0.5);
+}
+
+/* Bet result — spirit flash */
+[data-theme="ghost"] .bet-result {
+  background: #0e0b18;
+  border: 1px solid rgba(168,132,243,0.4);
+  box-shadow:
+    0 0 80px rgba(124,92,191,0.2),
+    inset 0 1px 0 rgba(168,132,243,0.1);
+  backdrop-filter: blur(30px);
+}
+
+/* Points bar shimmer */
+[data-theme="ghost"] .points-fill {
+  background: linear-gradient(90deg, #4a2d8a, #7c5cbf, #a884f3, #c9b8e8, #a884f3);
+  background-size: 300% 100%;
+  animation: spiritFlow 3s linear infinite;
+}
+
+/* Section labels in ghost font */
+[data-theme="ghost"] .section-label {
+  letter-spacing: 3px;
+  color: rgba(168,132,243,0.6);
+}
+
+/* ── PIRATES IMMERSIVE ───────────────────────────────────── */
+
+/* Wood grain texture on cards */
+[data-theme="pirates"] .sport-card,
+[data-theme="pirates"] .stat-box,
+[data-theme="pirates"] .leaderboard-row,
+[data-theme="pirates"] .history-row {
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 3px,
+      rgba(200,146,42,0.015) 3px,
+      rgba(200,146,42,0.015) 4px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 8px,
+      rgba(139,94,26,0.02) 8px,
+      rgba(139,94,26,0.02) 9px
+    );
+}
+
+/* Rope-style border on login box */
+[data-theme="pirates"] .login-box {
+  border: 1px solid rgba(200,146,42,0.35);
+  box-shadow:
+    0 0 60px rgba(200,146,42,0.08),
+    0 0 120px rgba(139,94,26,0.05),
+    inset 0 1px 0 rgba(200,146,42,0.15);
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent,
+    transparent 6px,
+    rgba(139,94,26,0.02) 6px,
+    rgba(139,94,26,0.02) 7px
+  );
+}
+
+/* Cards rock like a ship */
+[data-theme="pirates"] .sport-card:hover {
+  animation: shipRock 2s ease-in-out infinite;
+  box-shadow: 0 20px 60px rgba(200,146,42,0.2);
+}
+
+@keyframes shipRock {
+  0%,100% { transform: translateY(-4px) rotate(-0.5deg); }
+  50%      { transform: translateY(-8px) rotate(0.5deg); }
+}
+
+/* Hero title — treasure glow */
+[data-theme="pirates"] .hero-title {
+  text-shadow:
+    0 0 30px rgba(200,146,42,0.3),
+    0 0 60px rgba(139,94,26,0.15);
+}
+
+[data-theme="pirates"] .accent {
+  text-shadow:
+    0 0 20px rgba(200,146,42,0.7),
+    0 0 40px rgba(200,146,42,0.3);
+}
+
+/* Stat numbers — gold shine */
+[data-theme="pirates"] .stat-num {
+  text-shadow: 0 0 20px rgba(200,146,42,0.5);
+  font-family: 'Pirata One', cursive;
+}
+
+/* Nav — dark ship hull */
+[data-theme="pirates"] .nav {
+  background: rgba(4,3,0,0.98);
+  border-bottom: 1px solid rgba(200,146,42,0.2);
+  box-shadow: 0 2px 30px rgba(0,0,0,0.5);
+}
+
+[data-theme="pirates"] .nav::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(200,146,42,0.4), transparent);
+  pointer-events: none;
+}
+
+/* Parchment section labels */
+[data-theme="pirates"] .section-label {
+  letter-spacing: 3px;
+  color: rgba(200,146,42,0.6);
+  font-family: 'Pirata One', cursive;
+  font-size: 0.9rem;
+}
+
+/* Bet result — treasure chest */
+[data-theme="pirates"] .bet-result {
+  background: #0f0a02;
+  border: 1px solid rgba(200,146,42,0.4);
+  box-shadow:
+    0 0 80px rgba(200,146,42,0.15),
+    inset 0 1px 0 rgba(200,146,42,0.1);
+}
+
+[data-theme="pirates"] .bet-result.win {
+  box-shadow:
+    0 0 80px rgba(200,146,42,0.3),
+    0 0 120px rgba(74,222,128,0.1);
+}
+
+/* Gold shimmer on points bar */
+[data-theme="pirates"] .points-fill {
+  background: linear-gradient(90deg, #4a2e05, #8b5e1a, #c8922a, #f5c96a, #c8922a);
+  background-size: 300% 100%;
+  animation: doubloonFlow 2.5s linear infinite;
+}
+
+/* Screen title pirate font already set via index.css,
+   but add the golden glow here */
+[data-theme="pirates"] .screen-title {
+  text-shadow: 0 0 30px rgba(200,146,42,0.3);
+}
+
+/* Leaderboard you-row — X marks the spot */
+[data-theme="pirates"] .leaderboard-row.you {
+  border-color: #c8922a;
+  background: rgba(200,146,42,0.06);
+  box-shadow:
+    0 0 30px rgba(200,146,42,0.1),
+    inset 0 1px 0 rgba(200,146,42,0.08);
+}
+
+/* Amount chips look like doubloons */
+[data-theme="pirates"] .amount-chip {
+  border-radius: 50px;
+  border-color: rgba(200,146,42,0.3);
+  color: rgba(200,146,42,0.8);
+}
+
+[data-theme="pirates"] .amount-chip:hover {
+  background: rgba(200,146,42,0.1);
+  border-color: #c8922a;
+  color: #c8922a;
+}
 /* ── MOBILE IMPROVEMENTS ─────────────────────────────────── */
 @media (max-width: 600px) {
 
