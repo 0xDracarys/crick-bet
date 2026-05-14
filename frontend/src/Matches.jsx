@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { getH2H } from "./h2hUtils";
+import BetLockedModal from "./components/BetLockedModal";
 
 const API = "https://betting-backend-xq1q.onrender.com";
 
@@ -130,7 +131,7 @@ function resolveOdds(oddsMap, matchId) {
 }
 
 // ── Main Component ──────────────────────────────────────────────────────────
-export default function Matches({ onBetOnMatch, onFantasy11 }) {
+export default function Matches({ onBetOnMatch, onFantasy11, userTheme = "spiderverse" }) {
   const [matches, setMatches]         = useState([]);
   const [loading, setLoading]         = useState(true);
   const [error, setError]             = useState("");
@@ -138,6 +139,10 @@ export default function Matches({ onBetOnMatch, onFantasy11 }) {
   const [oddsMap, setOddsMap]         = useState({});
   const [oddsLoading, setOddsLoading] = useState(false);
   const [oddsError, setOddsError]     = useState("");
+
+  // ── BetLockedModal state ─────────────────────────────────────────────────
+  const [betModal, setBetModal] = useState(null);
+  // betModal shape: { themeId, betAmount, teamName, matchLabel, potentialWin, odds }
 
   useEffect(() => { fetchMatches(); }, []);
 
@@ -171,6 +176,25 @@ export default function Matches({ onBetOnMatch, onFantasy11 }) {
       setOddsError("Odds unavailable");
     }
     setOddsLoading(false);
+  }
+
+  // ── Called by onBetOnMatch after a bet is successfully placed ────────────
+  // Replace your existing onBetOnMatch calls with this wrapper so the modal fires.
+  function handleBetOnMatch(matchInfo) {
+    // Pass matchInfo up to parent (App.js) which actually places the bet.
+    // The parent should call showBetLockedModal() when the bet API succeeds.
+    onBetOnMatch(matchInfo, (betResult) => {
+      // betResult = { betAmount, teamName, potentialWin, odds }
+      // This callback is called by the parent once the bet is confirmed.
+      setBetModal({
+        themeId:     userTheme,
+        betAmount:   betResult.betAmount,
+        teamName:    betResult.teamName,
+        matchLabel:  matchInfo.matchLabel,
+        potentialWin: betResult.potentialWin,
+        odds:        betResult.odds,
+      });
+    });
   }
 
   function formatDate(dateStr, timeStr) {
@@ -247,6 +271,18 @@ export default function Matches({ onBetOnMatch, onFantasy11 }) {
     <div style={s.wrap}>
       <style>{`@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}`}</style>
 
+      {/* ── Bet Locked Modal ── */}
+      <BetLockedModal
+        isOpen={!!betModal}
+        onClose={() => setBetModal(null)}
+        themeId={betModal?.themeId}
+        betAmount={betModal?.betAmount}
+        teamName={betModal?.teamName}
+        matchLabel={betModal?.matchLabel}
+        potentialWin={betModal?.potentialWin}
+        odds={betModal?.odds}
+      />
+
       <div style={s.header}>
         <div style={s.title}>🏏 IPL 2026 Matches</div>
         <button onClick={fetchMatches} style={s.refreshBtn} disabled={loading}>
@@ -305,8 +341,6 @@ export default function Matches({ onBetOnMatch, onFantasy11 }) {
 
         return (
           <div key={match.id} style={s.card(match.status)}>
-
-            {/* ── Color stripe using both team colors ── */}
             <div style={s.stripe(match.team1, match.team2)} />
 
             <div style={s.cardBody}>
@@ -342,26 +376,15 @@ export default function Matches({ onBetOnMatch, onFantasy11 }) {
                 </div>
               </div>
 
-              {/* ── Win probability bar ── */}
               {match.status === "upcoming" && odds && (
-                <WinBar
-                  team1={match.team1} team2={match.team2}
-                  pct1={team1Pct} pct2={team2Pct}
-                />
+                <WinBar team1={match.team1} team2={match.team2} pct1={team1Pct} pct2={team2Pct} />
               )}
-
               {match.status === "completed" && (
-                <WinBar
-                  team1={match.team1} team2={match.team2}
-                  pct1={team1Pct} pct2={team2Pct}
-                  label="Final win split"
-                />
+                <WinBar team1={match.team1} team2={match.team2} pct1={team1Pct} pct2={team2Pct} label="Final win split" />
               )}
 
-              {/* ── H2H last 3 results ── */}
               <H2HStrip team1={match.team1} team2={match.team2} />
 
-              {/* ── Odds payout row (upcoming only) ── */}
               {odds && match.status === "upcoming" && (
                 <div style={s.oddsRow}>
                   <div style={s.payout}>
@@ -386,7 +409,7 @@ export default function Matches({ onBetOnMatch, onFantasy11 }) {
 
               {match.status === "upcoming" && (
                 <div style={s.btnRow}>
-                  <button style={s.betBtn} onClick={() => onBetOnMatch(matchInfo)}>
+                  <button style={s.betBtn} onClick={() => handleBetOnMatch(matchInfo)}>
                     ⚡ Bet on this match
                   </button>
                   <button style={s.f11Btn} onClick={() => onFantasy11(matchInfo)}>

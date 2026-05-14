@@ -1,3 +1,4 @@
+  import BetLockedModal from "./components/BetLockedModal";
   import confetti from "canvas-confetti";
   import Profile from "./Profile";
   import Multiplayer from "./Multiplayer";
@@ -903,8 +904,15 @@ const handleAuth = async () => {
           setBetPlaced({ amount, team: selectedTeam, matchLabel: prefilledMatch.matchLabel, odds: teamOdds, potentialWin: Math.floor(amount * teamOdds) });
           fetchMyBets(); fetchAllHistory(); fetchLeaderboard();
           fireConfetti();
-          setTimeout(() => { setBetPlaced(null); setSelectedTeam(null); setBetAmount(""); setPrefilledMatch(null); setMatchStatus(null); }, 3000);
-        } else {
+      setBetPlaced({
+  themeId: "spiderverse",
+  amount,
+  team: selectedTeam,
+  matchLabel: prefilledMatch.matchLabel,
+  odds: teamOdds,
+  potentialWin: Math.floor(amount * teamOdds),
+});}
+else{
           setError(data.message || "Bet failed!");
           toast.error("Bet Failed", data.message || "Something went wrong. Try again.");
         }
@@ -1354,14 +1362,16 @@ const handleAuth = async () => {
                     )}
 
                     {isBettingLocked && error && <div className="error-msg">{error}</div>}
-                    {betPlaced && (
-                      <div className="bet-result win">
-                        <div className="result-emoji">🔒</div>
-                        <div className="result-text">BET LOCKED!</div>
-                        <div style={{ fontSize: 14, marginTop: 8, opacity: 0.8 }}>{betPlaced.amount} pts on {betPlaced.team} · {betPlaced.matchLabel}</div>
-                        {betPlaced.potentialWin && <div style={{ fontSize: 16, marginTop: 8, fontWeight: 700, color: "#1D9E75" }}>🏆 Potential win: {betPlaced.potentialWin} pts ({betPlaced.odds}x odds)</div>}
-                      </div>
-                    )}
+                   <BetLockedModal
+  isOpen={!!betPlaced}
+  onClose={() => setBetPlaced(null)}
+  themeId={betPlaced?.themeId}
+  betAmount={betPlaced?.amount}
+  teamName={betPlaced?.team}
+  matchLabel={betPlaced?.matchLabel}
+  potentialWin={betPlaced?.potentialWin}
+  odds={betPlaced?.odds + "x"}
+/>  /
                   </>
                 )}
               </div>
