@@ -1372,7 +1372,7 @@ else{
   matchLabel={betPlaced?.matchLabel}
   potentialWin={betPlaced?.potentialWin}
   odds={betPlaced?.odds + "x"}
-/>  /
+/>  
                   </>
                 )}
               </div>
@@ -1508,16 +1508,17 @@ else{
               </div>
             )}
             {/* ── PROFILE ── */}
-<Profile
-  username={username}
-  points={points}
-  lockedPoints={lockedPoints}
-  allHistory={allHistory}
-  onNavigate={setScreen}
-  onThemeChange={setUserTheme}  // ← add this
-  currentTheme={userTheme}      // ← add this
-/>
-
+{screen === "profile" && (
+  <Profile
+    username={username}
+    points={points}
+    lockedPoints={lockedPoints}
+    allHistory={allHistory}
+    onNavigate={setScreen}
+    onThemeChange={setUserTheme}
+    currentTheme={userTheme}
+  />
+)}
             {/* ── MULTIPLAYER ── */}
             {screen === "multiplayer" && (
               <div className="screen">
