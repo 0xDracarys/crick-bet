@@ -1,0 +1,317 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Match Settle Admin</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #111; min-height: 100vh; padding: 24px 16px; }
+  h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+  .sub { font-size: 13px; color: #666; margin-bottom: 24px; }
+  .card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 20px; margin-bottom: 16px; max-width: 600px; }
+  .section-label { font-size: 11px; font-weight: 600; color: #888; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 12px; }
+  select, input { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: #fff; color: #111; outline: none; }
+  select:focus, input:focus { border-color: #555; }
+  .meta { font-size: 12px; color: #666; display: flex; gap: 14px; margin-top: 10px; flex-wrap: wrap; }
+  .pill { font-size: 11px; padding: 2px 9px; border-radius: 20px; font-weight: 600; }
+  .pill-live { background: #d1fae5; color: #065f46; }
+  .pill-done { background: #f3f4f6; color: #374151; }
+  .pill-soon { background: #dbeafe; color: #1e40af; }
+  .team-row { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; margin-bottom: 10px; }
+  .vs { font-size: 12px; color: #aaa; text-align: center; }
+  .team-btn { padding: 12px 8px; border: 1px solid #ddd; border-radius: 8px; background: #fff; color: #111; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; transition: all .15s; }
+  .team-btn:hover { background: #f9f9f9; border-color: #bbb; }
+  .team-btn.sel { border: 2px solid #2563eb; background: #eff6ff; color: #1d4ed8; }
+  .nr-btn { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; background: #fafafa; color: #666; font-size: 13px; cursor: pointer; margin-top: 4px; transition: all .15s; }
+  .nr-btn:hover { background: #f3f3f3; }
+  .nr-btn.sel { border: 2px solid #d97706; background: #fffbeb; color: #92400e; font-weight: 600; }
+  .preview { font-size: 13px; color: #555; background: #f9f9f9; border-radius: 8px; padding: 10px 12px; margin-bottom: 14px; }
+  .settle-btn { width: 100%; padding: 13px; border: 1px solid #ddd; border-radius: 8px; background: #111; color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+  .settle-btn:disabled { opacity: .35; cursor: not-allowed; }
+  .settle-btn:not(:disabled):hover { opacity: .85; }
+  .result-ok { background: #f0fdf4; color: #14532d; border: 1px solid #86efac; border-radius: 8px; padding: 14px 16px; margin-top: 14px; font-size: 13px; }
+  .result-err { background: #fef2f2; color: #7f1d1d; border: 1px solid #fca5a5; border-radius: 8px; padding: 14px 16px; margin-top: 14px; font-size: 13px; }
+  .stat-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 12px; }
+  .stat { background: #fff; border: 1px solid #e5e5e5; border-radius: 8px; padding: 10px; text-align: center; }
+  .stat-n { font-size: 22px; font-weight: 700; }
+  .stat-l { font-size: 11px; color: #888; margin-top: 2px; }
+  .f11-note { background: #fffbeb; color: #78350f; border: 1px solid #fcd34d; border-radius: 8px; padding: 10px 14px; font-size: 12px; margin-top: 10px; }
+  .f11-note code { background: #fef3c7; padding: 1px 5px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+  .log-item { font-size: 12px; color: #555; padding: 9px 0; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .log-item:last-child { border-bottom: none; }
+  .log-winner { font-weight: 600; color: #111; font-size: 12px; white-space: nowrap; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #ccc; border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; vertical-align: -2px; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+
+<h1>Match settle admin</h1>
+<p class="sub">Settle bets, contests and challenges for any IPL match.</p>
+
+<div class="card">
+  <div class="section-label">Step 1 — select match</div>
+  <select id="matchSel" onchange="onMatchChange()">
+    <option value="">— choose a match —</option>
+  </select>
+  <div class="meta hidden" id="matchMeta"></div>
+</div>
+
+<div class="card hidden" id="winnerCard">
+  <div class="section-label">Step 2 — declare winner</div>
+  <div class="team-row">
+    <button class="team-btn" id="btn1" onclick="selectWinner('team1')"></button>
+    <span class="vs">vs</span>
+    <button class="team-btn" id="btn2" onclick="selectWinner('team2')"></button>
+  </div>
+  <button class="nr-btn" id="btnNR" onclick="selectWinner('no_result')">
+    &#9940; No result / abandoned
+  </button>
+</div>
+
+<div class="card hidden" id="settleCard">
+  <div class="section-label">Step 3 — settle</div>
+  <div class="preview" id="settlePreview"></div>
+  <button class="settle-btn" id="settleBtn" onclick="doSettle()" disabled>
+    Settle match
+  </button>
+  <div id="resultBox"></div>
+</div>
+
+<div class="card hidden" id="logCard">
+  <div class="section-label">Settlement log</div>
+  <div id="logList"></div>
+</div>
+
+<script>
+const MATCHES = [
+  {id:"ipl-1",t1:"RCB",t2:"SRH",date:"2026-03-28",time:"19:30",venue:"Bangalore"},
+  {id:"ipl-2",t1:"MI",t2:"KKR",date:"2026-03-29",time:"19:30",venue:"Mumbai"},
+  {id:"ipl-3",t1:"RR",t2:"CSK",date:"2026-03-30",time:"19:30",venue:"Guwahati"},
+  {id:"ipl-4",t1:"PBKS",t2:"GT",date:"2026-03-31",time:"19:30",venue:"Mohali"},
+  {id:"ipl-5",t1:"LSG",t2:"DC",date:"2026-04-01",time:"19:30",venue:"Lucknow"},
+  {id:"ipl-6",t1:"KKR",t2:"SRH",date:"2026-04-02",time:"19:30",venue:"Kolkata"},
+  {id:"ipl-7",t1:"CSK",t2:"PBKS",date:"2026-04-03",time:"19:30",venue:"Chennai"},
+  {id:"ipl-8",t1:"DC",t2:"MI",date:"2026-04-04",time:"15:30",venue:"Delhi"},
+  {id:"ipl-9",t1:"GT",t2:"RR",date:"2026-04-04",time:"19:30",venue:"Ahmedabad"},
+  {id:"ipl-10",t1:"SRH",t2:"LSG",date:"2026-04-05",time:"15:30",venue:"Hyderabad"},
+  {id:"ipl-11",t1:"RCB",t2:"CSK",date:"2026-04-05",time:"19:30",venue:"Bangalore"},
+  {id:"ipl-12",t1:"KKR",t2:"PBKS",date:"2026-04-06",time:"19:30",venue:"Kolkata"},
+  {id:"ipl-13",t1:"RR",t2:"MI",date:"2026-04-07",time:"19:30",venue:"Jaipur"},
+  {id:"ipl-14",t1:"DC",t2:"GT",date:"2026-04-08",time:"19:30",venue:"Delhi"},
+  {id:"ipl-15",t1:"KKR",t2:"LSG",date:"2026-04-09",time:"19:30",venue:"Kolkata"},
+  {id:"ipl-16",t1:"RR",t2:"RCB",date:"2026-04-10",time:"19:30",venue:"Jaipur"},
+  {id:"ipl-17",t1:"PBKS",t2:"SRH",date:"2026-04-11",time:"15:30",venue:"Mohali"},
+  {id:"ipl-18",t1:"CSK",t2:"DC",date:"2026-04-11",time:"19:30",venue:"Chennai"},
+  {id:"ipl-19",t1:"LSG",t2:"GT",date:"2026-04-12",time:"15:30",venue:"Lucknow"},
+  {id:"ipl-20",t1:"MI",t2:"RCB",date:"2026-04-12",time:"19:30",venue:"Mumbai"},
+  {id:"ipl-21",t1:"SRH",t2:"RR",date:"2026-04-13",time:"19:30",venue:"Hyderabad"},
+  {id:"ipl-22",t1:"CSK",t2:"KKR",date:"2026-04-14",time:"19:30",venue:"Chennai"},
+  {id:"ipl-23",t1:"RCB",t2:"LSG",date:"2026-04-15",time:"19:30",venue:"Bangalore"},
+  {id:"ipl-24",t1:"MI",t2:"PBKS",date:"2026-04-16",time:"19:30",venue:"Mumbai"},
+  {id:"ipl-25",t1:"GT",t2:"KKR",date:"2026-04-17",time:"19:30",venue:"Ahmedabad"},
+  {id:"ipl-26",t1:"RCB",t2:"DC",date:"2026-04-18",time:"15:30",venue:"Bangalore"},
+  {id:"ipl-27",t1:"SRH",t2:"CSK",date:"2026-04-18",time:"19:30",venue:"Hyderabad"},
+  {id:"ipl-28",t1:"KKR",t2:"RR",date:"2026-04-19",time:"15:30",venue:"Kolkata"},
+  {id:"ipl-29",t1:"PBKS",t2:"LSG",date:"2026-04-19",time:"19:30",venue:"Mohali"},
+  {id:"ipl-30",t1:"GT",t2:"MI",date:"2026-04-20",time:"19:30",venue:"Ahmedabad"},
+  {id:"ipl-31",t1:"SRH",t2:"DC",date:"2026-04-21",time:"19:30",venue:"Hyderabad"},
+  {id:"ipl-32",t1:"LSG",t2:"RR",date:"2026-04-22",time:"19:30",venue:"Lucknow"},
+  {id:"ipl-33",t1:"MI",t2:"CSK",date:"2026-04-23",time:"19:30",venue:"Mumbai"},
+  {id:"ipl-34",t1:"RCB",t2:"GT",date:"2026-04-24",time:"19:30",venue:"Bangalore"},
+  {id:"ipl-35",t1:"DC",t2:"PBKS",date:"2026-04-25",time:"15:30",venue:"Delhi"},
+  {id:"ipl-36",t1:"RR",t2:"SRH",date:"2026-04-25",time:"19:30",venue:"Jaipur"},
+  {id:"ipl-37",t1:"GT",t2:"CSK",date:"2026-04-26",time:"15:30",venue:"Ahmedabad"},
+  {id:"ipl-38",t1:"LSG",t2:"KKR",date:"2026-04-26",time:"19:30",venue:"Lucknow"},
+  {id:"ipl-39",t1:"DC",t2:"RCB",date:"2026-04-27",time:"19:30",venue:"Delhi"},
+  {id:"ipl-40",t1:"PBKS",t2:"RR",date:"2026-04-28",time:"19:30",venue:"Mohali"},
+  {id:"ipl-41",t1:"MI",t2:"SRH",date:"2026-04-29",time:"19:30",venue:"Mumbai"},
+  {id:"ipl-42",t1:"GT",t2:"RCB",date:"2026-04-30",time:"19:30",venue:"Ahmedabad"},
+  {id:"ipl-43",t1:"RR",t2:"DC",date:"2026-05-01",time:"19:30",venue:"Jaipur"},
+  {id:"ipl-44",t1:"CSK",t2:"MI",date:"2026-05-02",time:"19:30",venue:"Chennai"},
+  {id:"ipl-45",t1:"SRH",t2:"KKR",date:"2026-05-03",time:"15:30",venue:"Hyderabad"},
+  {id:"ipl-46",t1:"GT",t2:"PBKS",date:"2026-05-03",time:"19:30",venue:"Ahmedabad"},
+  {id:"ipl-47",t1:"MI",t2:"LSG",date:"2026-05-04",time:"19:30",venue:"Mumbai"},
+  {id:"ipl-48",t1:"DC",t2:"CSK",date:"2026-05-05",time:"19:30",venue:"Delhi"},
+  {id:"ipl-49",t1:"SRH",t2:"PBKS",date:"2026-05-06",time:"19:30",venue:"Hyderabad"},
+  {id:"ipl-50",t1:"LSG",t2:"RCB",date:"2026-05-07",time:"19:30",venue:"Lucknow"},
+  {id:"ipl-51",t1:"DC",t2:"KKR",date:"2026-05-08",time:"19:30",venue:"Delhi"},
+  {id:"ipl-52",t1:"RR",t2:"GT",date:"2026-05-09",time:"19:30",venue:"Jaipur"},
+  {id:"ipl-53",t1:"CSK",t2:"LSG",date:"2026-05-10",time:"15:30",venue:"Chennai"},
+  {id:"ipl-54",t1:"RCB",t2:"MI",date:"2026-05-10",time:"19:30",venue:"Bangalore"},
+  {id:"ipl-55",t1:"PBKS",t2:"DC",date:"2026-05-11",time:"19:30",venue:"Mohali"},
+  {id:"ipl-56",t1:"GT",t2:"SRH",date:"2026-05-12",time:"19:30",venue:"Ahmedabad"},
+  {id:"ipl-57",t1:"RCB",t2:"KKR",date:"2026-05-13",time:"19:30",venue:"Bangalore"},
+  {id:"ipl-58",t1:"PBKS",t2:"MI",date:"2026-05-14",time:"19:30",venue:"Dharamsala"},
+  {id:"ipl-59",t1:"LSG",t2:"CSK",date:"2026-05-15",time:"19:30",venue:"Lucknow"},
+  {id:"ipl-60",t1:"KKR",t2:"GT",date:"2026-05-16",time:"19:30",venue:"Kolkata"},
+  {id:"ipl-61",t1:"PBKS",t2:"RCB",date:"2026-05-17",time:"15:30",venue:"Dharamsala"},
+  {id:"ipl-62",t1:"DC",t2:"RR",date:"2026-05-17",time:"19:30",venue:"Delhi"},
+  {id:"ipl-63",t1:"CSK",t2:"SRH",date:"2026-05-18",time:"19:30",venue:"Chennai"},
+  {id:"ipl-64",t1:"RR",t2:"LSG",date:"2026-05-19",time:"19:30",venue:"Jaipur"},
+  {id:"ipl-65",t1:"KKR",t2:"MI",date:"2026-05-20",time:"19:30",venue:"Kolkata"},
+  {id:"ipl-66",t1:"CSK",t2:"GT",date:"2026-05-21",time:"19:30",venue:"Chennai"},
+  {id:"ipl-67",t1:"SRH",t2:"RCB",date:"2026-05-22",time:"19:30",venue:"Hyderabad"},
+  {id:"ipl-68",t1:"LSG",t2:"PBKS",date:"2026-05-23",time:"19:30",venue:"Lucknow"},
+  {id:"ipl-69",t1:"MI",t2:"RR",date:"2026-05-24",time:"15:30",venue:"Mumbai"},
+  {id:"ipl-70",t1:"KKR",t2:"DC",date:"2026-05-24",time:"19:30",venue:"Kolkata"}
+];
+
+let selectedMatch = null;
+let selectedWinner = null;
+let settling = false;
+let log = [];
+
+function getStatus(m) {
+  const now = new Date();
+  const start = new Date(`${m.date}T${m.time}:00+05:30`);
+  const end = new Date(start.getTime() + 4 * 60 * 60 * 1000);
+  if (now >= start && now <= end) return "live";
+  if (now > end) return "completed";
+  return "upcoming";
+}
+
+function buildSelect() {
+  const sel = document.getElementById("matchSel");
+  const completed = MATCHES.filter(m => getStatus(m) === "completed").reverse();
+  const live = MATCHES.filter(m => getStatus(m) === "live");
+  const upcoming = MATCHES.filter(m => getStatus(m) === "upcoming");
+
+  const addGroup = (label, arr) => {
+    if (!arr.length) return;
+    const og = document.createElement("optgroup");
+    og.label = label;
+    arr.forEach(m => {
+      const o = document.createElement("option");
+      o.value = m.id;
+      o.textContent = `${m.id} · ${m.t1} vs ${m.t2} · ${m.date}`;
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  };
+  addGroup("🔴 Live now", live);
+  addGroup("✅ Completed", completed);
+  addGroup("🕐 Upcoming", upcoming);
+}
+
+function onMatchChange() {
+  const id = document.getElementById("matchSel").value;
+  selectedWinner = null;
+  document.getElementById("resultBox").innerHTML = "";
+  document.getElementById("settleCard").classList.add("hidden");
+
+  if (!id) {
+    selectedMatch = null;
+    document.getElementById("winnerCard").classList.add("hidden");
+    document.getElementById("matchMeta").classList.add("hidden");
+    return;
+  }
+
+  selectedMatch = MATCHES.find(m => m.id === id);
+  const st = getStatus(selectedMatch);
+  const pillCls = st === "live" ? "pill-live" : st === "completed" ? "pill-done" : "pill-soon";
+  const pillTxt = st === "live" ? "Live" : st === "completed" ? "Completed" : "Upcoming";
+
+  document.getElementById("matchMeta").classList.remove("hidden");
+  document.getElementById("matchMeta").innerHTML = `
+    <span>📍 ${selectedMatch.venue}</span>
+    <span>📅 ${selectedMatch.date} ${selectedMatch.time} IST</span>
+    <span><span class="pill ${pillCls}">${pillTxt}</span></span>
+  `;
+
+  document.getElementById("btn1").textContent = selectedMatch.t1;
+  document.getElementById("btn2").textContent = selectedMatch.t2;
+  document.getElementById("btn1").className = "team-btn";
+  document.getElementById("btn2").className = "team-btn";
+  document.getElementById("btnNR").className = "nr-btn";
+  document.getElementById("winnerCard").classList.remove("hidden");
+}
+
+function selectWinner(which) {
+  selectedWinner = which;
+  document.getElementById("btn1").className = "team-btn" + (which === "team1" ? " sel" : "");
+  document.getElementById("btn2").className = "team-btn" + (which === "team2" ? " sel" : "");
+  document.getElementById("btnNR").className = "nr-btn" + (which === "no_result" ? " sel" : "");
+
+  const winnerLabel = which === "team1" ? selectedMatch.t1 : which === "team2" ? selectedMatch.t2 : "No result";
+  document.getElementById("settlePreview").textContent =
+    `Settling ${selectedMatch.id} (${selectedMatch.t1} vs ${selectedMatch.t2}) — winner: ${winnerLabel}`;
+  document.getElementById("settleCard").classList.remove("hidden");
+  document.getElementById("settleBtn").disabled = false;
+  document.getElementById("resultBox").innerHTML = "";
+}
+
+async function doSettle() {
+  if (settling || !selectedMatch || !selectedWinner) return;
+  settling = true;
+  const btn = document.getElementById("settleBtn");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Settling...';
+
+  const winnerValue = selectedWinner === "team1" ? selectedMatch.t1
+    : selectedWinner === "team2" ? selectedMatch.t2
+    : "no_result";
+
+  try {
+    const resp = await fetch("/admin/settle-all", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchId: selectedMatch.id, winner: winnerValue })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.message || "Server error");
+
+    const bs = data.betsSettled || 0;
+    const cs = data.contestsSettled || 0;
+    const chs = data.challengesSettled || 0;
+    const hasF11 = data.nextStep && data.nextStep.includes("fantasy11");
+
+    document.getElementById("resultBox").innerHTML = `
+      <div class="result-ok">
+        ✅ <strong>${selectedMatch.id}</strong> settled — winner: <strong>${winnerValue === "no_result" ? "No result (all refunded)" : winnerValue}</strong>
+        <div class="stat-row">
+          <div class="stat"><div class="stat-n">${bs}</div><div class="stat-l">Bets</div></div>
+          <div class="stat"><div class="stat-n">${cs}</div><div class="stat-l">Contests</div></div>
+          <div class="stat"><div class="stat-n">${chs}</div><div class="stat-l">Challenges</div></div>
+        </div>
+      </div>
+      ${hasF11 ? `<div class="f11-note">⚠️ <strong>Fantasy11 reminder:</strong> Run <code>POST /fantasy11-settle/auto/${selectedMatch.id}</code> with the Cricbuzz match ID to settle Fantasy11 contests.</div>` : ""}
+    `;
+
+    log.unshift({
+      id: selectedMatch.id,
+      teams: `${selectedMatch.t1} vs ${selectedMatch.t2}`,
+      winner: winnerValue, bs, cs, chs,
+      time: new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })
+    });
+    renderLog();
+    btn.textContent = "✅ Settled";
+
+  } catch (err) {
+    document.getElementById("resultBox").innerHTML =
+      `<div class="result-err">❌ Error: ${err.message}</div>`;
+    btn.disabled = false;
+    btn.textContent = "Retry settle";
+  } finally {
+    settling = false;
+  }
+}
+
+function renderLog() {
+  if (!log.length) return;
+  document.getElementById("logCard").classList.remove("hidden");
+  document.getElementById("logList").innerHTML = log.map(l => `
+    <div class="log-item">
+      <span>${l.id} · ${l.teams}</span>
+      <span class="log-winner">${l.winner === "no_result" ? "No result" : l.winner} · ${l.bs}b ${l.cs}c ${l.chs}ch · ${l.time}</span>
+    </div>
+  `).join("");
+}
+
+buildSelect();
+</script>
+</body>
+</html>
