@@ -6,13 +6,13 @@ console.log("Starting server...");
 const mongoose = require("mongoose");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
+const path = require("path");
 const { storeOtp, verifyOtp } = require('./otp');
 const { sendOtp } = require('./mailer');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-const path = require("path");
 app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "admin.html"));
 });
