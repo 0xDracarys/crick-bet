@@ -20,8 +20,6 @@ const fantasy11Routes = require('./fantasy11Routes');
 app.use('/fantasy11', fantasy11Routes);
 const fantasy11SettleRoutes = require('./fantasy11Settle');
 app.use('/fantasy11-settle', fantasy11SettleRoutes);
-
-const path = require("path");
 app.get("/admin", (req, res) => {
   res.sendFile(path.join(__dirname, "admin.html"));
 });
