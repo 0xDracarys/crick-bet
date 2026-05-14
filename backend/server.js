@@ -12,6 +12,10 @@ const { sendOtp } = require('./mailer');
 const app = express();
 app.use(cors());
 app.use(express.json());
+const path = require("path");
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "admin.html"));
+});
 const fantasy11Routes = require('./fantasy11Routes');
 app.use('/fantasy11', fantasy11Routes);
 const fantasy11SettleRoutes = require('./fantasy11Settle');
