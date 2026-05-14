@@ -1,6 +1,7 @@
 import ProfileMusicCard from "./components/ProfileMusicCard";
 import ThemeSwitcher from "./ThemeSwitcher";
 import React, { useState, useEffect } from "react";
+import { THEMES } from "./components/BetLockedModal";
 
 const API = process.env.REACT_APP_API_URL;
 
@@ -72,7 +73,7 @@ function MiniHistoryRow({ item }) {
   );
 }
 
-export default function Profile({ username, points, lockedPoints, allHistory, onNavigate }) {
+export default function Profile({ username, points, lockedPoints, allHistory, onNavigate, onThemeChange, currentTheme = "spiderverse" }) {
   const [leaderboard, setLeaderboard] = useState([]);
   const [activeTab, setActiveTab] = useState("stats");
 
@@ -89,15 +90,15 @@ export default function Profile({ username, points, lockedPoints, allHistory, on
     ? Math.min(((points - tier.min) / (nextTier.min - tier.min)) * 100, 100)
     : 100;
 
-  const wins      = allHistory.filter(h => h.status === "won").length;
-  const losses    = allHistory.filter(h => h.status === "lost").length;
-  const refunds   = allHistory.filter(h => h.status === "refund" || h.status === "refunded").length;
-  const pending   = allHistory.filter(h => h.status === "pending" || h.status === "active").length;
-  const bets      = allHistory.filter(h => h.type === "bet").length;
-  const contests  = allHistory.filter(h => h.type === "contest").length;
-  const challenges= allHistory.filter(h => h.type === "challenge").length;
-  const f11       = allHistory.filter(h => h.type === "fantasy11").length;
-  const winRate   = allHistory.filter(h => h.status !== "pending" && h.status !== "active" && h.status !== "refund" && h.status !== "refunded" && h.status !== "cancelled" && h.status !== "settled").length > 0
+  const wins       = allHistory.filter(h => h.status === "won").length;
+  const losses     = allHistory.filter(h => h.status === "lost").length;
+  const refunds    = allHistory.filter(h => h.status === "refund" || h.status === "refunded").length;
+  const pending    = allHistory.filter(h => h.status === "pending" || h.status === "active").length;
+  const bets       = allHistory.filter(h => h.type === "bet").length;
+  const contests   = allHistory.filter(h => h.type === "contest").length;
+  const challenges = allHistory.filter(h => h.type === "challenge").length;
+  const f11        = allHistory.filter(h => h.type === "fantasy11").length;
+  const winRate    = allHistory.filter(h => h.status !== "pending" && h.status !== "active" && h.status !== "refund" && h.status !== "refunded" && h.status !== "cancelled" && h.status !== "settled").length > 0
     ? Math.round((wins / allHistory.filter(h => ["won","lost","draw"].includes(h.status)).length) * 100)
     : 0;
 
@@ -121,7 +122,7 @@ export default function Profile({ username, points, lockedPoints, allHistory, on
 
   const initials = username.slice(0, 2).toUpperCase();
   const avatarColor = tier.color;
-const isBatman = document.documentElement.getAttribute("data-theme") === "batman";
+  const isBatman = document.documentElement.getAttribute("data-theme") === "batman";
 
   const tabs = ["stats", "history", "achievements"];
 
@@ -138,14 +139,11 @@ const isBatman = document.documentElement.getAttribute("data-theme") === "batman
         position: "relative",
         overflow: "hidden",
       }}>
-        {/* glow blob */}
         <div style={{
           position: "absolute", top: -60, right: -60, width: 200, height: 200,
           borderRadius: "50%", background: `${avatarColor}18`, pointerEvents: "none",
           filter: "blur(40px)",
         }} />
-
-        {/* accent line at top */}
         <div style={{
           position: "absolute", top: 0, left: 0, right: 0, height: 3,
           background: `linear-gradient(90deg, transparent, ${avatarColor}, transparent)`,
@@ -153,7 +151,6 @@ const isBatman = document.documentElement.getAttribute("data-theme") === "batman
         }} />
 
         <div style={{ display: "flex", alignItems: "center", gap: 18, position: "relative" }}>
-          {/* Avatar */}
           <div style={{
             width: 72, height: 72, borderRadius: "50%",
             background: `linear-gradient(135deg, ${avatarColor}33, ${avatarColor}11)`,
@@ -162,7 +159,7 @@ const isBatman = document.documentElement.getAttribute("data-theme") === "batman
             fontSize: 26, fontWeight: 800, color: avatarColor,
             flexShrink: 0, boxShadow: `0 0 24px ${avatarColor}33`,
           }}>
-         {isBatman ? "🦇" : initials}
+            {isBatman ? "🦇" : initials}
           </div>
 
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -181,7 +178,6 @@ const isBatman = document.documentElement.getAttribute("data-theme") === "batman
             </div>
           </div>
 
-          {/* Rank badge */}
           <div style={{
             textAlign: "center", background: "rgba(255,215,0,0.08)",
             border: "1px solid rgba(255,215,0,0.2)", borderRadius: 12,
@@ -192,7 +188,6 @@ const isBatman = document.documentElement.getAttribute("data-theme") === "batman
           </div>
         </div>
 
-        {/* Balance */}
         <div style={{
           marginTop: 20, padding: "14px 16px",
           background: "rgba(255,255,255,0.03)",
@@ -224,7 +219,6 @@ const isBatman = document.documentElement.getAttribute("data-theme") === "batman
           </div>
         </div>
 
-        {/* XP Progress */}
         {nextTier && (
           <div style={{ marginTop: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
@@ -246,31 +240,122 @@ const isBatman = document.documentElement.getAttribute("data-theme") === "batman
           </div>
         )}
       </div>
-     <ProfileMusicCard />
 
-{/* ── THEME SWITCHER (mobile-friendly) ── */}
-<div style={{
-  display: "flex", alignItems: "center", justifyContent: "space-between",
-  background: "rgba(255,255,255,0.025)",
-  border: "1px solid rgba(255,255,255,0.07)",
-  borderRadius: 14,
-  padding: "14px 18px",
-  marginBottom: 18,
-}}>
-  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-    <div style={{
-      width: 38, height: 38, borderRadius: "50%",
-      background: "rgba(255,255,255,0.06)",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: 18,
-    }}>🎨</div>
-    <div>
-      <div style={{ fontSize: 14, fontWeight: 700, color: "#e6edf3" }}>Theme</div>
-      <div style={{ fontSize: 11, color: "#555", marginTop: 1 }}>Switch app appearance</div>
-    </div>
-  </div>
-  <ThemeSwitcher />
-</div>
+      <ProfileMusicCard />
+
+      {/* ── APP THEME SWITCHER ── */}
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        background: "rgba(255,255,255,0.025)",
+        border: "1px solid rgba(255,255,255,0.07)",
+        borderRadius: 14,
+        padding: "14px 18px",
+        marginBottom: 14,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: "50%",
+            background: "rgba(255,255,255,0.06)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 18,
+          }}>🎨</div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#e6edf3" }}>App Theme</div>
+            <div style={{ fontSize: 11, color: "#555", marginTop: 1 }}>Switch app appearance</div>
+          </div>
+        </div>
+        <ThemeSwitcher />
+      </div>
+
+      {/* ── BET LOCKED MODAL THEME PICKER ── */}
+      <div style={{
+        background: "rgba(255,255,255,0.025)",
+        border: "1px solid rgba(255,255,255,0.07)",
+        borderRadius: 14,
+        padding: "16px 18px",
+        marginBottom: 18,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+          <div style={{
+            width: 38, height: 38, borderRadius: "50%",
+            background: "rgba(255,255,255,0.06)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 18,
+          }}>🔒</div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#e6edf3" }}>Bet Locked Theme</div>
+            <div style={{ fontSize: 11, color: "#555", marginTop: 1 }}>Choose your modal style when a bet is placed</div>
+          </div>
+        </div>
+
+        {/* Theme grid */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {Object.values(THEMES).map(t => {
+            const isActive = currentTheme === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => onThemeChange?.(t.id)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 7,
+                  padding: "7px 14px",
+                  borderRadius: 99,
+                  border: isActive ? `2px solid ${t.titleColor}` : "1.5px solid rgba(255,255,255,0.1)",
+                  background: isActive ? `${t.titleColor}18` : "rgba(255,255,255,0.03)",
+                  color: isActive ? t.titleColor : "#888",
+                  fontSize: 12,
+                  fontWeight: isActive ? 700 : 400,
+                  cursor: "pointer",
+                  transition: "all 0.18s",
+                  boxShadow: isActive ? `0 0 12px ${t.titleColor}33` : "none",
+                }}
+              >
+                <span style={{ fontSize: 14 }}>{t.icon}</span>
+                {t.label}
+                {isActive && <span style={{ fontSize: 10, marginLeft: 2 }}>✓</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Preview strip */}
+        {currentTheme && THEMES[currentTheme] && (
+          <div style={{
+            marginTop: 14,
+            padding: "10px 14px",
+            borderRadius: 10,
+            background: THEMES[currentTheme].modalBg,
+            border: THEMES[currentTheme].border,
+            display: "flex", alignItems: "center", gap: 10,
+          }}>
+            <span style={{ fontSize: 24 }}>{THEMES[currentTheme].icon}</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: THEMES[currentTheme].titleColor, fontFamily: THEMES[currentTheme].font }}>
+                {THEMES[currentTheme].label} Theme
+              </div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+                Active · shown when you lock a bet
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── TABS ── */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 18 }}>
+        {tabs.map(tab => (
+          <button key={tab} onClick={() => setActiveTab(tab)} style={{
+            flex: 1, padding: "9px 0", borderRadius: 10, cursor: "pointer",
+            border: activeTab === tab ? "1px solid rgba(255,255,255,0.15)" : "1px solid rgba(255,255,255,0.05)",
+            background: activeTab === tab ? "rgba(255,255,255,0.07)" : "transparent",
+            color: activeTab === tab ? "#e6edf3" : "#555",
+            fontSize: 12, fontWeight: activeTab === tab ? 700 : 400,
+            textTransform: "capitalize", transition: "all 0.15s",
+          }}>
+            {tab === "stats" ? "📊 Stats" : tab === "history" ? "📜 History" : "🏅 Achievements"}
+          </button>
+        ))}
+      </div>
 
       {/* ── STATS TAB ── */}
       {activeTab === "stats" && (
@@ -286,7 +371,6 @@ const isBatman = document.documentElement.getAttribute("data-theme") === "batman
             <StatBox label="Refunds" value={refunds} color="#185FA5" />
           </div>
 
-          {/* Activity Breakdown */}
           <div style={{
             background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)",
             borderRadius: 14, padding: "18px 20px", marginBottom: 16,
@@ -295,10 +379,10 @@ const isBatman = document.documentElement.getAttribute("data-theme") === "batman
               Activity Breakdown
             </div>
             {[
-              { label: "Solo Bets",   emoji: "🎯", count: bets,       color: "#BA7517" },
-              { label: "Contests",    emoji: "🏆", count: contests,   color: "#1D9E75" },
-              { label: "Challenges",  emoji: "⚔️", count: challenges, color: "#E24B4A" },
-              { label: "Fantasy 11",  emoji: "🏏", count: f11,        color: "#ffd166" },
+              { label: "Solo Bets",  emoji: "🎯", count: bets,       color: "#BA7517" },
+              { label: "Contests",   emoji: "🏆", count: contests,   color: "#1D9E75" },
+              { label: "Challenges", emoji: "⚔️", count: challenges, color: "#E24B4A" },
+              { label: "Fantasy 11", emoji: "🏏", count: f11,        color: "#ffd166" },
             ].map(row => (
               <div key={row.label} style={{
                 display: "flex", alignItems: "center", gap: 10,
@@ -307,9 +391,7 @@ const isBatman = document.documentElement.getAttribute("data-theme") === "batman
                 <span style={{ fontSize: 16, width: 24, textAlign: "center" }}>{row.emoji}</span>
                 <span style={{ flex: 1, fontSize: 13, color: "#ccc" }}>{row.label}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div style={{
-                    height: 4, width: 80, background: "rgba(255,255,255,0.06)", borderRadius: 99, overflow: "hidden",
-                  }}>
+                  <div style={{ height: 4, width: 80, background: "rgba(255,255,255,0.06)", borderRadius: 99, overflow: "hidden" }}>
                     <div style={{
                       height: "100%",
                       width: allHistory.length ? `${(row.count / allHistory.length) * 100}%` : "0%",
@@ -324,7 +406,6 @@ const isBatman = document.documentElement.getAttribute("data-theme") === "batman
             ))}
           </div>
 
-          {/* Quick Actions */}
           <div style={{ display: "flex", gap: 10 }}>
             <button onClick={() => onNavigate("matches")} style={{
               flex: 1, padding: "12px 0", borderRadius: 12, border: "none",
@@ -369,16 +450,16 @@ const isBatman = document.documentElement.getAttribute("data-theme") === "batman
       {activeTab === "achievements" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {[
-            { icon: "🎯", label: "First Bet",        desc: "Place your first bet",             unlocked: allHistory.some(h => h.type === "bet") },
-            { icon: "🏆", label: "First Win",         desc: "Win your first bet",               unlocked: wins >= 1 },
-            { icon: "🔥", label: "Hot Streak",        desc: "Win 3 or more bets",               unlocked: wins >= 3 },
-            { icon: "👑", label: "Win 10",            desc: "Win 10 bets total",                unlocked: wins >= 10 },
-            { icon: "⚔️", label: "Challenger",        desc: "Play a multiplayer challenge",      unlocked: challenges >= 1 },
-            { icon: "🏏", label: "Fantasy Fan",       desc: "Submit a Fantasy 11 team",          unlocked: f11 >= 1 },
-            { icon: "💰", label: "High Roller",       desc: "Reach 5000 points",                unlocked: points >= 5000 },
-            { icon: "💎", label: "Diamond Hands",     desc: "Reach 10,000 points",              unlocked: points >= 10000 },
-            { icon: "🏅", label: "Contest King",      desc: "Join 5 contests",                  unlocked: contests >= 5 },
-            { icon: "📊", label: "50% Win Rate",      desc: "Maintain ≥50% win rate (5+ bets)", unlocked: allHistory.filter(h=>["won","lost"].includes(h.status)).length >= 5 && winRate >= 50 },
+            { icon: "🎯", label: "First Bet",    desc: "Place your first bet",             unlocked: allHistory.some(h => h.type === "bet") },
+            { icon: "🏆", label: "First Win",    desc: "Win your first bet",               unlocked: wins >= 1 },
+            { icon: "🔥", label: "Hot Streak",   desc: "Win 3 or more bets",               unlocked: wins >= 3 },
+            { icon: "👑", label: "Win 10",       desc: "Win 10 bets total",                unlocked: wins >= 10 },
+            { icon: "⚔️", label: "Challenger",   desc: "Play a multiplayer challenge",     unlocked: challenges >= 1 },
+            { icon: "🏏", label: "Fantasy Fan",  desc: "Submit a Fantasy 11 team",         unlocked: f11 >= 1 },
+            { icon: "💰", label: "High Roller",  desc: "Reach 5000 points",                unlocked: points >= 5000 },
+            { icon: "💎", label: "Diamond Hands",desc: "Reach 10,000 points",              unlocked: points >= 10000 },
+            { icon: "🏅", label: "Contest King", desc: "Join 5 contests",                  unlocked: contests >= 5 },
+            { icon: "📊", label: "50% Win Rate", desc: "Maintain ≥50% win rate (5+ bets)", unlocked: allHistory.filter(h=>["won","lost"].includes(h.status)).length >= 5 && winRate >= 50 },
           ].map(badge => (
             <div key={badge.label} style={{
               display: "flex", alignItems: "center", gap: 14,
@@ -386,7 +467,6 @@ const isBatman = document.documentElement.getAttribute("data-theme") === "batman
               border: `1px solid ${badge.unlocked ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.04)"}`,
               borderRadius: 12, padding: "12px 16px",
               opacity: badge.unlocked ? 1 : 0.45,
-              transition: "opacity 0.2s",
             }}>
               <div style={{
                 width: 44, height: 44, borderRadius: "50%",
@@ -398,9 +478,7 @@ const isBatman = document.documentElement.getAttribute("data-theme") === "batman
                 {badge.icon}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: badge.unlocked ? "#ddd" : "#444" }}>
-                  {badge.label}
-                </div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: badge.unlocked ? "#ddd" : "#444" }}>{badge.label}</div>
                 <div style={{ fontSize: 12, color: "#555", marginTop: 2 }}>{badge.desc}</div>
               </div>
               {badge.unlocked && (

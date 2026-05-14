@@ -653,6 +653,7 @@
     const [selectedTeam, setSelectedTeam]   = useState(null);
     const [betAmount, setBetAmount]         = useState("");
     const [betPlaced, setBetPlaced]         = useState(null);
+    const [userTheme, setUserTheme] = useState("spiderverse");
     const [myBets, setMyBets]               = useState([]);
     const [allHistory, setAllHistory]       = useState([]);
     const [leaderboard, setLeaderboard]     = useState([]);
@@ -905,7 +906,7 @@ const handleAuth = async () => {
           fetchMyBets(); fetchAllHistory(); fetchLeaderboard();
           fireConfetti();
       setBetPlaced({
-  themeId: "spiderverse",
+  themeId: userTheme,
   amount,
   team: selectedTeam,
   matchLabel: prefilledMatch.matchLabel,
@@ -1507,17 +1508,15 @@ else{
               </div>
             )}
             {/* ── PROFILE ── */}
-{screen === "profile" && (
-  <div className="screen">
-    <Profile
-      username={username}
-      points={points}
-      lockedPoints={lockedPoints}
-      allHistory={allHistory}
-      onNavigate={setScreen}
-    />
-  </div>
-)}
+<Profile
+  username={username}
+  points={points}
+  lockedPoints={lockedPoints}
+  allHistory={allHistory}
+  onNavigate={setScreen}
+  onThemeChange={setUserTheme}  // ← add this
+  currentTheme={userTheme}      // ← add this
+/>
 
             {/* ── MULTIPLAYER ── */}
             {screen === "multiplayer" && (
