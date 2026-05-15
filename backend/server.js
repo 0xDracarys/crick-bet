@@ -244,9 +244,9 @@ app.post("/bet", async (req, res) => {
     const user = await User.findOne({ name });
     if (!user || amount > user.points || amount <= 0)
       return res.status(400).json({ message: "Invalid bet" });
-    const existingBet = await Bet.findOne({ username: name, matchId, status: "pending" });
-    if (existingBet)
-      return res.status(400).json({ message: "You already have a pending bet on this match!" });
+    // const existingBet = await Bet.findOne({ username: name, matchId, status: "pending" });
+    // if (existingBet)
+    //   return res.status(400).json({ message: "You already have a pending bet on this match!" });
     user.points -= amount;
     user.lockedPoints = (user.lockedPoints || 0) + amount;
     await user.save();
