@@ -867,8 +867,7 @@ const handleAuth = async () => {
     return;
   } // ← closes if (authMode === "login") only — NOT the function
 
-  // ── Register: send OTP ───────────────────────────────────────────────────
-  if (!otpStep) {
+if (!otpStep) {
     if (!pendingEmail.trim()) { setError("Please enter your email!"); return; }
     setLoading(true);
     setError("");
@@ -890,9 +889,8 @@ const handleAuth = async () => {
     }
     setLoading(false);
     return;
-  } // ← closes if (!otpStep)
+  }
 
-  // ── Register: verify OTP ─────────────────────────────────────────────────
   setLoading(true);
   setError("");
   try {
@@ -916,28 +914,7 @@ const handleAuth = async () => {
     setError("Can't connect to server!");
   }
   setLoading(false);
-}; // ← closes handleAuth
-  if (!otpStep) {
-    if (!pendingEmail.trim()) { setError("Please enter your email!"); return; }
-    setLoading(true); setError("");
-    try {
-      const res  = await fetch(`${API}/register/send-otp`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: inputName.trim(), email: pendingEmail.trim(), password: inputPassword }) });
-      const data = await res.json();
-      if (res.ok) { setOtpStep(true); toast.info("OTP Sent", `Check ${pendingEmail} for your code`, 4000); }
-      else { setError(data.message || "Failed to send OTP"); }
-    } catch { setError("Can't connect to server!"); }
-    setLoading(false);
-    return;
-  }
-  setLoading(true); setError("");
-  try {
-    const res  = await fetch(`${API}/register/verify-otp`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: pendingEmail.trim(), otp: otpInput.trim() }) });
-    const data = await res.json();
-    if (res.ok) { setUsername(data.name); setPoints(data.points); setLockedPoints(data.lockedPoints || 0); toast.success("Account created!", `Welcome ${data.name} · 1000 pts`, 3000); setScreen("home"); fetchLeaderboard(); }
-    else { setError(data.message || "Wrong OTP"); }
-  } catch { setError("Can't connect to server!"); }
-  setLoading(false);
-};
+}; // ← ONE closing }; for handleAuth
     
 
     const handleBetOnMatch = (matchInfo) => {
@@ -1665,4 +1642,5 @@ const pointsDisplay = (item) => {
 {screen !== "auth" && <ThemeMusicPlayer />}
 </div>
 );
+}
 // ← single closing brace — end of export default function App()
