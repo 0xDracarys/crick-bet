@@ -256,7 +256,7 @@ async function doSettle() {
     : "no_result";
 
   try {
-    const resp = await fetch("/admin/settle-all", {
+    const resp = await fetch("https://betting-backend-xq1q.onrender.com/admin/settle-match", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ matchId: selectedMatch.id, winner: winnerValue })
