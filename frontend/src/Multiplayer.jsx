@@ -82,16 +82,32 @@ const IPL_MATCHES = [
   { id: "ipl-69", team1: "MI",   team2: "RR",   date: "2026-05-24", time: "15:30", venue: "Mumbai" },
   { id: "ipl-70", team1: "KKR",  team2: "DC",   date: "2026-05-24", time: "19:30", venue: "Kolkata" },
 ];
+const FOOTBALL_MATCHES_MP = [
+  { id: "epl-1",  team1: "Arsenal",        team2: "Chelsea",         date: "2026-05-17", time: "17:30", venue: "Emirates Stadium", league: "EPL" },
+  { id: "epl-2",  team1: "Manchester City", team2: "Liverpool",       date: "2026-05-17", time: "16:00", venue: "Etihad Stadium",    league: "EPL" },
+  { id: "epl-3",  team1: "Manchester Utd",  team2: "Tottenham",       date: "2026-05-17", time: "14:00", venue: "Old Trafford",      league: "EPL" },
+  { id: "ucl-1",  team1: "Real Madrid",     team2: "Manchester City", date: "2026-05-31", time: "21:00", venue: "Allianz Arena",     league: "UCL" },
+  { id: "ucl-2",  team1: "Arsenal",         team2: "PSG",             date: "2026-05-20", time: "21:00", venue: "Emirates Stadium",  league: "UCL" },
+  { id: "ucl-3",  team1: "Bayern Munich",   team2: "Inter Milan",     date: "2026-05-22", time: "21:00", venue: "Allianz Arena",     league: "UCL" },
+  { id: "ucl-4",  team1: "Barcelona",       team2: "Atletico Madrid", date: "2026-05-24", time: "21:00", venue: "Camp Nou",          league: "UCL" },
+];
 
 // ── Helper: check if a contest's match has started based on IST time ──────────
 function isMatchStarted(contest) {
   if (contest.status === "locked") return true;
-  const iplMatch = IPL_MATCHES.find(
-    m => m.team1 === contest.team1 && m.team2 === contest.team2
-  );
-  if (!iplMatch || !iplMatch.time) return false;
-  const matchDate = new Date(`${iplMatch.date}T${iplMatch.time}:00+05:30`);
-  return new Date() >= matchDate;
+  // try IPL
+  const iplMatch = IPL_MATCHES.find(m => m.team1 === contest.team1 && m.team2 === contest.team2);
+  if (iplMatch && iplMatch.time) {
+    const matchDate = new Date(`${iplMatch.date}T${iplMatch.time}:00+05:30`);
+    return new Date() >= matchDate;
+  }
+  // try football
+  const ftMatch = FOOTBALL_MATCHES_MP.find(m => m.team1 === contest.team1 && m.team2 === contest.team2);
+  if (ftMatch && ftMatch.time) {
+    const matchDate = new Date(`${ftMatch.date}T${ftMatch.time}:00+05:30`);
+    return new Date() >= matchDate;
+  }
+  return false;
 }
 
 // ── FIX: isSolo check takes priority over winner field ────────────────────────
@@ -383,6 +399,34 @@ function IPLMatchPicker({ selectedMatch, onSelect }) {
     </div>
   );
 }
+function FootballMatchPicker({ selectedMatch, onSelect }) {
+  const today = new Date().toISOString().slice(0, 10);
+  return (
+    <div style={{ maxHeight: 260, overflowY: "auto", marginBottom: 14 }}>
+      {FOOTBALL_MATCHES_MP.map(match => {
+        const isPast = match.date < today;
+        const leagueLabel = match.league === "UCL" ? "⭐ UCL" : "🏴󠁧󠁢󠁥󠁮󠁧󠁿 EPL";
+        return (
+          <div key={match.id}
+            style={{ ...S.iplCard(selectedMatch?.id === match.id), opacity: isPast ? 0.45 : 1 }}
+            onClick={() => onSelect(match)}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontWeight: 600, fontSize: 14 }}>
+                ⚽ {match.team1} <span style={{ color: "#888780", fontWeight: 400 }}>vs</span> {match.team2}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 10, color: "#888780", background: "#F1EFE8", padding: "1px 6px", borderRadius: 99 }}>{leagueLabel}</span>
+                {isPast && <span style={{ fontSize: 10, color: "#888780", background: "#F1EFE8", padding: "1px 6px", borderRadius: 99 }}>past</span>}
+                <div style={{ fontSize: 12, color: "#888780" }}>{match.date}</div>
+              </div>
+            </div>
+            <div style={{ fontSize: 12, color: "#888780", marginTop: 3 }}>🏟️ {match.venue}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 function HowItWorks() {
   const [open, setOpen] = useState(false);
@@ -519,16 +563,18 @@ export default function Multiplayer({ username, points, setPoints }) {
     else { setSuccess(msg); setTimeout(() => setSuccess(""), 3500); }
   }
 
-  function handleIPLMatchSelect(match, setMatch, setLabel, setTeam) {
-    setMatch(match);
-    setLabel(`${match.team1} vs ${match.team2} — IPL 2026`);
-    setTeam(null);
-  }
+ function handleIPLMatchSelect(match, setMatch, setLabel, setTeam) {
+  setMatch(match);
+  const suffix = match.league ? `— ${match.league === "UCL" ? "Champions League" : "Premier League"}` : "— IPL 2026";
+  setLabel(`${match.team1} vs ${match.team2} ${suffix}`);
+  setTeam(null);
+}
 
-  function getTeamsFor(sport, iplMatch) {
-    if (sport?.id === "cricket" && iplMatch) return [iplMatch.team1, iplMatch.team2];
-    return sport?.teams || [];
-  }
+function getTeamsFor(sport, iplMatch) {
+  if ((sport?.id === "cricket" || sport?.id === "football") && iplMatch)
+    return [iplMatch.team1, iplMatch.team2];
+  return sport?.teams || [];
+}
 
   async function handleCreate() {
     const isPrivate = challengeVisibility === "private";
@@ -541,6 +587,7 @@ export default function Multiplayer({ username, points, setPoints }) {
     }
     if (!selectedSport) return flash("error", "Pick a sport");
     if (selectedSport.id === "cricket" && !selectedIPLMatch) return flash("error", "Please pick an IPL match");
+if (selectedSport.id === "football" && !selectedIPLMatch) return flash("error", "Please pick a football match");
     if (!matchLabel.trim()) return flash("error", "Enter a match label");
     if (!isF11 && !myTeam) return flash("error", "Pick your team");
     const w = parseInt(wager);
@@ -602,7 +649,8 @@ export default function Multiplayer({ username, points, setPoints }) {
     const isF11 = contestMode === "fantasy11";
     if (!contestName.trim()) return flash("error", "Enter a contest name");
     if (!cSport) return flash("error", "Pick a sport");
-    if (cSport.id === "cricket" && !cIPLMatch) return flash("error", "Please pick an IPL match");
+   if (cSport.id === "cricket" && !cIPLMatch) return flash("error", "Please pick an IPL match");
+if (cSport.id === "football" && !cIPLMatch) return flash("error", "Please pick a football match");
     if (!isF11 && !cMyTeam) return flash("error", "Pick your team");
     if (!cMatchLabel.trim()) return flash("error", "Enter a match label");
     const fee = parseInt(cEntryFee);
@@ -777,16 +825,41 @@ export default function Multiplayer({ username, points, setPoints }) {
               <input style={S.input} placeholder="Enter their username..." value={opponentName} onChange={e => setOpponentName(e.target.value)} />
             </>
           )}
-          <div style={S.label}>Sport</div>
           <div style={S.pillRow}>
-            {SPORTS.map(s => <button key={s.id} style={S.pill(selectedSport?.id === s.id)} onClick={() => { setSelectedSport(s); setMyTeam(null); setSelectedIPLMatch(null); setMatchLabel(""); }}>{s.emoji} {s.name}</button>)}
-          </div>
-          {selectedSport?.id === "cricket" && (<><div style={S.label}>🏏 Pick an IPL 2026 Match</div><IPLMatchPicker selectedMatch={selectedIPLMatch} onSelect={(match) => handleIPLMatchSelect(match, setSelectedIPLMatch, setMatchLabel, setMyTeam)} /></>)}
-          {challengeMode === "fantasy11" && selectedIPLMatch ? (
-            <Fantasy11Banner matchId={selectedIPLMatch.id} matchLabel={matchLabel} teams={[selectedIPLMatch.team1, selectedIPLMatch.team2]} />
-          ) : challengeMode === "bet" && selectedSport && (
-            <><div style={S.label}>Pick your team</div><div style={S.pillRow}>{getTeamsFor(selectedSport, selectedIPLMatch).map(t => <button key={t} style={S.pill(myTeam === t)} onClick={() => setMyTeam(t)}>{t}</button>)}</div></>
-          )}
+  {SPORTS.map(s => <button key={s.id} style={S.pill(selectedSport?.id === s.id)} onClick={() => { setSelectedSport(s); setMyTeam(null); setSelectedIPLMatch(null); setMatchLabel(""); }}>{s.emoji} {s.name}</button>)}
+</div>
+<>
+  {selectedSport?.id === "cricket" && (
+    <>
+      <div style={S.label}>🏏 Pick an IPL 2026 Match</div>
+      <IPLMatchPicker selectedMatch={selectedIPLMatch} onSelect={(match) => handleIPLMatchSelect(match, setSelectedIPLMatch, setMatchLabel, setMyTeam)} />
+    </>
+  )}
+  {selectedSport?.id === "football" && (
+    <>
+      <div style={S.label}>⚽ Pick a Football Match</div>
+      <FootballMatchPicker
+        selectedMatch={selectedIPLMatch}
+        onSelect={(match) => handleIPLMatchSelect(match, setSelectedIPLMatch, setMatchLabel, setMyTeam)}
+      />
+    </>
+  )}
+</>
+
+{challengeMode === "fantasy11" && selectedIPLMatch ? (
+  <Fantasy11Banner matchId={selectedIPLMatch.id} matchLabel={matchLabel} teams={[selectedIPLMatch.team1, selectedIPLMatch.team2]} />
+) : (
+  challengeMode === "bet" && selectedSport ? (
+    <>
+      <div style={S.label}>Pick your team</div>
+      <div style={S.pillRow}>
+        {getTeamsFor(selectedSport, selectedIPLMatch).map(t => (
+          <button key={t} style={S.pill(myTeam === t)} onClick={() => setMyTeam(t)}>{t}</button>
+        ))}
+      </div>
+    </>
+  ) : null
+)}
           <div style={S.label}>Match label</div>
           <input style={S.input} placeholder="e.g. MI vs KKR – IPL 2026" value={matchLabel} onChange={e => setMatchLabel(e.target.value)} />
           <div style={S.label}>Wager (your points: {points.toLocaleString()})</div>
@@ -986,6 +1059,15 @@ export default function Multiplayer({ username, points, setPoints }) {
           <div style={S.label}>Sport</div>
           <div style={S.pillRow}>{SPORTS.map(s => <button key={s.id} style={S.pill(cSport?.id === s.id)} onClick={() => { setCsport(s); setCMyTeam(null); setCIplMatch(null); setCMatchLabel(""); }}>{s.emoji} {s.name}</button>)}</div>
           {cSport?.id === "cricket" && (<><div style={S.label}>🏏 Pick an IPL 2026 Match</div><IPLMatchPicker selectedMatch={cIPLMatch} onSelect={(match) => handleIPLMatchSelect(match, setCIplMatch, setCMatchLabel, setCMyTeam)} /></>)}
+          {cSport?.id === "football" && (
+  <>
+    <div style={S.label}>⚽ Pick a Football Match</div>
+    <FootballMatchPicker
+      selectedMatch={cIPLMatch}
+      onSelect={(match) => handleIPLMatchSelect(match, setCIplMatch, setCMatchLabel, setCMyTeam)}
+    />
+  </>
+)}
           {contestMode === "fantasy11" && cIPLMatch ? (
             <Fantasy11Banner matchId={cIPLMatch.id} matchLabel={cMatchLabel} teams={[cIPLMatch.team1, cIPLMatch.team2]} />
           ) : contestMode === "bet" && cSport && (

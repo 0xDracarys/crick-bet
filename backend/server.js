@@ -357,6 +357,17 @@ const TEAM_NAME_MAP = {
   LSG:  ["Lucknow Super Giants", "LSG"],
   DC:   ["Delhi Capitals", "DC"],
 };
+const FOOTBALL_ODDS_FALLBACK = {
+  "epl-1":  { Arsenal: 2.1,           Chelsea: 3.2            },
+  "epl-2":  { "Manchester City": 1.8,  Liverpool: 4.0         },
+  "epl-3":  { "Manchester Utd": 2.5,   Tottenham: 2.8         },
+  "epl-4":  { Newcastle: 2.2,          "Aston Villa": 3.0     },
+  "epl-5":  { Brighton: 2.4,           Brentford: 2.9         },
+  "ucl-1":  { "Real Madrid": 1.9,      "Manchester City": 3.8 },
+  "ucl-2":  { Arsenal: 2.3,            PSG: 2.9               },
+  "ucl-3":  { "Bayern Munich": 1.7,    "Inter Milan": 4.2     },
+  "ucl-4":  { Barcelona: 2.0,          "Atletico Madrid": 3.5 },
+};
 
 let oddsCache = { data: null, fetchedAt: 0 };
 
@@ -402,28 +413,61 @@ function findOddsForMatch(oddsData, team1, team2) {
 
 app.get("/odds/:matchId", async (req, res) => {
   try {
-    const matchId = req.params.matchId;
+    const { matchId } = req.params;
+
+    // ── Football: static fallback ─────────────────────────────────────────────
+    const footMatch = FOOTBALL_MATCHES.find(m => m.id === matchId);
+    if (footMatch) {
+      const fallback = FOOTBALL_ODDS_FALLBACK[matchId] || {
+        [footMatch.team1]: 1.9,
+        [footMatch.team2]: 1.9,
+      };
+      return res.json({ matchId, team1: footMatch.team1, team2: footMatch.team2, odds: fallback, source: "fallback" });
+    }
+
+    // ── IPL: live odds ────────────────────────────────────────────────────────
     const iplMatch = IPL_MATCHES.find(m => m.id === matchId);
     if (!iplMatch) return res.status(404).json({ message: "Match not found" });
+
     const oddsData = await fetchIPLOdds();
     const odds = findOddsForMatch(oddsData, iplMatch.team1, iplMatch.team2);
     if (!odds) return res.json({ matchId, team1: iplMatch.team1, team2: iplMatch.team2, odds: { [iplMatch.team1]: 1.9, [iplMatch.team2]: 1.9 }, source: "fallback" });
     res.json({ matchId, team1: iplMatch.team1, team2: iplMatch.team2, odds, source: "live" });
-  } catch (err) { console.error("odds error:", err.message); res.status(500).json({ message: "Failed to fetch odds" }); }
+
+  } catch (err) {
+    console.error("odds error:", err.message);
+    res.status(500).json({ message: "Failed to fetch odds" });
+  }
 });
 
 app.get("/odds-bulk", async (req, res) => {
   try {
-    const oddsData = await fetchIPLOdds();
     const today = new Date().toISOString().slice(0, 10);
-    const upcomingMatches = IPL_MATCHES.filter(m => m.date >= today).slice(0, 10);
     const result = {};
-    for (const match of upcomingMatches) {
+
+    // ── IPL: live odds ────────────────────────────────────────────────────────
+    const oddsData = await fetchIPLOdds();
+    const upcomingIPL = IPL_MATCHES.filter(m => m.date >= today).slice(0, 10);
+    for (const match of upcomingIPL) {
       const odds = findOddsForMatch(oddsData, match.team1, match.team2);
       result[match.id] = odds || { [match.team1]: 1.9, [match.team2]: 1.9 };
     }
-    res.json({ odds: result, source: oddsData.length > 0 ? "live" : "fallback" });
-  } catch (err) { console.error("odds-bulk error:", err.message); res.status(500).json({ message: "Failed to fetch bulk odds" }); }
+
+    // ── Football: static fallback ─────────────────────────────────────────────
+    const upcomingFootball = FOOTBALL_MATCHES.filter(m => m.date >= today);
+    for (const match of upcomingFootball) {
+      result[match.id] = FOOTBALL_ODDS_FALLBACK[match.id] || {
+        [match.team1]: 1.9,
+        [match.team2]: 1.9,
+      };
+    }
+
+    res.json({ odds: result, source: oddsData.length > 0 ? "live+fallback" : "fallback" });
+
+  } catch (err) {
+    console.error("odds-bulk error:", err.message);
+    res.status(500).json({ message: "Failed to fetch bulk odds" });
+  }
 });
 
 function getMatchesWithStatus() {
@@ -439,6 +483,31 @@ function getMatchesWithStatus() {
 }
 
 app.get("/ipl-matches", (req, res) => res.json({ matches: getMatchesWithStatus() }));
+const FOOTBALL_MATCHES = [
+  { id: "epl-1",  team1: "Arsenal",        team2: "Chelsea",         date: "2026-05-17", time: "17:30", venue: "Emirates Stadium", league: "EPL" },
+  { id: "epl-2",  team1: "Manchester City", team2: "Liverpool",       date: "2026-05-17", time: "16:00", venue: "Etihad Stadium",   league: "EPL" },
+  { id: "epl-3",  team1: "Manchester Utd",  team2: "Tottenham",       date: "2026-05-17", time: "14:00", venue: "Old Trafford",     league: "EPL" },
+  { id: "epl-4",  team1: "Newcastle",       team2: "Aston Villa",     date: "2026-05-18", time: "16:00", venue: "St James Park",    league: "EPL" },
+  { id: "epl-5",  team1: "Brighton",        team2: "Brentford",       date: "2026-05-18", time: "14:00", venue: "Amex Stadium",     league: "EPL" },
+  { id: "ucl-1",  team1: "Real Madrid",     team2: "Manchester City", date: "2026-05-31", time: "21:00", venue: "Allianz Arena",    league: "UCL" },
+  { id: "ucl-2",  team1: "Arsenal",         team2: "PSG",             date: "2026-05-20", time: "21:00", venue: "Emirates Stadium", league: "UCL" },
+  { id: "ucl-3",  team1: "Bayern Munich",   team2: "Inter Milan",     date: "2026-05-22", time: "21:00", venue: "Allianz Arena",    league: "UCL" },
+  { id: "ucl-4",  team1: "Barcelona",       team2: "Atletico Madrid", date: "2026-05-24", time: "21:00", venue: "Camp Nou",         league: "UCL" },
+];
+
+function getFootballMatchesWithStatus() {
+  const today = new Date();
+  return FOOTBALL_MATCHES.map(m => {
+    const matchDate = new Date(`${m.date}T${m.time}:00+05:30`);
+    const endTime = new Date(matchDate.getTime() + 2 * 60 * 60 * 1000);
+    let status = "upcoming";
+    if (today >= matchDate && today <= endTime) status = "live";
+    else if (today > endTime) status = "completed";
+    return { ...m, status };
+  });
+}
+
+app.get("/football-matches", (req, res) => res.json({ matches: getFootballMatchesWithStatus() }));
 app.get("/ping", (req, res) => res.json({ ok: true, time: new Date().toISOString() }));
 
 app.get("/live-scores", async (req, res) => {
@@ -459,57 +528,102 @@ app.get("/live-scores", async (req, res) => {
   } catch (err) { console.error("live-scores error:", err.message); res.status(500).json({ message: "Failed to fetch live scores", error: err.message }); }
 });
 
+// ─── Helper: fetch winner from CricAPI by team names ───────────────────────
+async function fetchIPLWinner(iplMatch) {
+  const res  = await fetch(
+    `https://api.cricapi.com/v1/matches?apikey=${CRICKET_API_KEY}&offset=0`
+  );
+  const data = await res.json();
+  if (!data.data) return null;
+
+  const t1 = iplMatch.team1.toUpperCase();
+  const t2 = iplMatch.team2.toUpperCase();
+
+  const apiMatch = data.data.find(m =>
+    m.matchEnded &&
+    m.teams?.some(t => t.toUpperCase().includes(t1)) &&
+    m.teams?.some(t => t.toUpperCase().includes(t2))
+  );
+
+  return apiMatch?.matchWinner ?? null;
+}
+
+// ─── Helper: settle all bets for a match ───────────────────────────────────
+async function settleBets(bets, winner, matchId) {
+  for (const bet of bets) {
+    const user = await User.findOne({ name: bet.username });
+    if (!user) continue;
+
+    const won        = winner.toLowerCase().includes(bet.team.toLowerCase());
+    const multiplier = (bet.odds && bet.odds > 1) ? bet.odds : 2.0;
+
+    if (won) {
+      user.points += Math.floor(bet.amount * multiplier);
+    }
+    user.lockedPoints = Math.max(0, (user.lockedPoints || 0) - bet.amount);
+    bet.status = won ? "won" : "lost";
+
+    await user.save();
+    await bet.save();
+    console.log(`Settled bet for ${bet.username} on ${matchId}: ${bet.status}`);
+  }
+}
+
+// ─── Helper: settle one match ───────────────────────────────────────────────
+async function autoSettleMatch(matchId, pendingBets) {
+  // Football: manual settle only
+  if (matchId.startsWith("epl-") || matchId.startsWith("ucl-")) {
+    console.log(`Football match ${matchId} — skipping auto-settle (manual only)`);
+    return;
+  }
+
+  // IPL: auto-settle via CricAPI matched by team names
+  if (matchId.startsWith("ipl-")) {
+    const iplMatch = IPL_MATCHES.find(m => m.id === matchId);
+    if (!iplMatch) {
+      console.warn(`Unknown IPL match ID: ${matchId}`);
+      return;
+    }
+
+    const matchStart = new Date(`${iplMatch.date}T${iplMatch.time}:00+05:30`);
+    const matchEnd   = new Date(matchStart.getTime() + 4 * 60 * 60 * 1000);
+    if (new Date() < matchEnd) {
+      console.log(`Match ${matchId} not over yet, skipping.`);
+      return;
+    }
+
+    try {
+      const winner = await fetchIPLWinner(iplMatch);
+      if (!winner) {
+        console.log(`No API result yet for ${matchId}`);
+        return;
+      }
+      const matchBets = pendingBets.filter(b => b.matchId === matchId);
+      await settleBets(matchBets, winner, matchId);
+    } catch (err) {
+      console.error(`Error settling IPL match ${matchId}:`, err.message);
+    }
+    return;
+  }
+
+  // Unrecognised prefix
+  console.warn(`Unrecognised matchId prefix, skipping: ${matchId}`);
+}
+
+// ─── Main scheduler function ────────────────────────────────────────────────
 async function checkAndSettleBets() {
   try {
     const pendingBets = await Bet.find({ status: "pending" });
     if (pendingBets.length === 0) return;
+
     const matchIds = [...new Set(pendingBets.map(b => b.matchId))];
+
     for (const matchId of matchIds) {
-      if (matchId.startsWith("ipl-")) {
-        const iplMatch = IPL_MATCHES.find(m => m.id === matchId);
-        if (!iplMatch) continue;
-        const matchDate = new Date(`${iplMatch.date}T${iplMatch.time}:00+05:30`);
-        const endTime = new Date(matchDate.getTime() + 4 * 60 * 60 * 1000);
-        if (new Date() < endTime) continue;
-        try {
-          const res = await fetch(`https://api.cricapi.com/v1/matches?apikey=${CRICKET_API_KEY}&offset=0`);
-          const data = await res.json();
-          if (!data.data) continue;
-          const apiMatch = data.data.find(m => m.matchEnded && m.teams && m.teams.some(t => t.toUpperCase().includes(iplMatch.team1.toUpperCase())) && m.teams.some(t => t.toUpperCase().includes(iplMatch.team2.toUpperCase())));
-          if (!apiMatch || !apiMatch.matchWinner) { console.log(`No API result yet for ${matchId}`); continue; }
-          const winner = apiMatch.matchWinner;
-          const matchBets = pendingBets.filter(b => b.matchId === matchId);
-          for (const bet of matchBets) {
-            const user = await User.findOne({ name: bet.username });
-            if (!user) continue;
-            const won = winner.toLowerCase().includes(bet.team.toLowerCase());
-            if (won) { const multiplier = bet.odds && bet.odds > 1 ? bet.odds : 2.0; user.points += Math.floor(bet.amount * multiplier); }
-            user.lockedPoints = Math.max(0, (user.lockedPoints || 0) - bet.amount);
-            await user.save(); bet.status = won ? "won" : "lost"; await bet.save();
-            console.log(`Settled bet for ${bet.username} on ${matchId}: ${bet.status}`);
-          }
-        } catch (err) { console.error(`Error settling IPL match ${matchId}:`, err.message); }
-      } else {
-        try {
-          const res = await fetch(`https://api.cricapi.com/v1/matches?apikey=${CRICKET_API_KEY}&offset=0`);
-          const data = await res.json();
-          if (!data.data) continue;
-          const apiMatch = data.data.find(m => m.id === matchId && m.matchEnded);
-          if (!apiMatch || !apiMatch.matchWinner) continue;
-          const winner = apiMatch.matchWinner;
-          const matchBets = pendingBets.filter(b => b.matchId === matchId);
-          for (const bet of matchBets) {
-            const user = await User.findOne({ name: bet.username });
-            if (!user) continue;
-            const won = winner.toLowerCase().includes(bet.team.toLowerCase());
-            if (won) { const multiplier = bet.odds && bet.odds > 1 ? bet.odds : 2.0; user.points += Math.floor(bet.amount * multiplier); }
-            user.lockedPoints = Math.max(0, (user.lockedPoints || 0) - bet.amount);
-            await user.save(); bet.status = won ? "won" : "lost"; await bet.save();
-          }
-        } catch (err) { console.error(`Error settling match ${matchId}:`, err.message); }
-      }
+      await autoSettleMatch(matchId, pendingBets);
     }
-  } catch (err) { console.error("checkAndSettleBets error:", err.message); }
+  } catch (err) {
+    console.error("checkAndSettleBets error:", err.message);
+  }
 }
 
 function isMatchHours() {
@@ -551,33 +665,65 @@ setInterval(() => {
 app.post("/admin/settle-match", async (req, res) => {
   try {
     const { matchId, winner } = req.body;
-    if (!matchId || !winner) return res.status(400).json({ message: "matchId and winner are required" });
-    const pendingBets = await Bet.find({ matchId, status: "pending" });
-    let betsSettled = 0;
-    for (const bet of pendingBets) {
-      const user = await User.findOne({ name: bet.username });
-      if (!user) continue;
-      const won = winner.toLowerCase().includes(bet.team.toLowerCase());
-      if (won) { const multiplier = bet.odds && bet.odds > 1 ? bet.odds : 2.0; user.points += Math.floor(bet.amount * multiplier); }
-      user.lockedPoints = Math.max(0, (user.lockedPoints || 0) - bet.amount);
-      await user.save(); bet.status = won ? "won" : "lost"; await bet.save(); betsSettled++;
+
+    if (!matchId || !winner) {
+      return res.status(400).json({ message: "matchId and winner are required" });
     }
+
+    // ── Settle bets ──────────────────────────────────────────────────────────
+    const pendingBets = await Bet.find({ matchId, status: "pending" });
+    await settleBets(pendingBets, winner, matchId);
+    const betsSettled = pendingBets.length;
+
+    // ── Settle contests ──────────────────────────────────────────────────────
     let contestsSettled = 0;
-    if (matchId.startsWith("ipl-")) {
-      const iplMatch = IPL_MATCHES.find(m => m.id === matchId);
-      if (iplMatch) {
-        const relatedContests = await Contest.find({ status: { $in: ["open", "locked"] }, team1: iplMatch.team1, team2: iplMatch.team2 });
-        for (const contest of relatedContests) {
-          const winnerTeam = winner.toLowerCase().includes(iplMatch.team1.toLowerCase()) ? iplMatch.team1 : iplMatch.team2;
-          const totalPot = contest.entryFee * contest.participants.length;
-          await settleContest(contest, winnerTeam, totalPot);
-          contestsSettled++;
-        }
+
+    const iplMatch  = IPL_MATCHES.find(m => m.id === matchId);
+    const footMatch = FOOTBALL_MATCHES.find(m => m.id === matchId);
+    const match     = iplMatch || footMatch;
+
+    if (!match) {
+      console.warn(`admin/settle-match: no match found for "${matchId}" in IPL or football fixtures`);
+    } else {
+      // Validate winner string maps to one of the two teams
+      const w            = winner.toLowerCase();
+      const matchesTeam1 = w.includes(match.team1.toLowerCase());
+      const matchesTeam2 = w.includes(match.team2.toLowerCase());
+
+      if (!matchesTeam1 && !matchesTeam2) {
+        return res.status(400).json({
+          message: `Winner "${winner}" doesn't match either team: "${match.team1}" or "${match.team2}"`,
+        });
+      }
+
+      const winnerTeam = matchesTeam1 ? match.team1 : match.team2;
+
+      const relatedContests = await Contest.find({
+        status: { $in: ["open", "locked"] },
+        team1:  match.team1,
+        team2:  match.team2,
+      });
+
+      for (const contest of relatedContests) {
+        const totalPot = contest.entryFee * contest.participants.length;
+        await settleContest(contest, winnerTeam, totalPot);
+        contestsSettled++;
       }
     }
-    res.json({ message: `Done! Settled ${betsSettled} bet(s) and ${contestsSettled} contest(s) for ${matchId}.`, winner, betsSettled, contestsSettled });
-  } catch (err) { console.error("admin/settle-match error:", err.message); res.status(500).json({ message: err.message }); }
-});
+
+    // ── Response ─────────────────────────────────────────────────────────────
+    return res.json({
+      message:         `Done! Settled ${betsSettled} bet(s) and ${contestsSettled} contest(s) for ${matchId}.`,
+      winner,
+      betsSettled,
+      contestsSettled,
+    });
+
+  } catch (err) {
+    console.error("admin/settle-match error:", err.message);
+    return res.status(500).json({ message: err.message });
+  }
+}); 
 
 // ─── Admin: Force re-settle Fantasy11 contest ─────────────────────────────────
 app.post("/admin/resiltle-fantasy11-contest", async (req, res) => {
@@ -622,6 +768,85 @@ app.post("/admin/resiltle-fantasy11-contest", async (req, res) => {
 });
 
 // ─── Admin: Fix Incorrectly Settled Bets & Contests ──────────────────────────
+// ─── Helper: fix mis-settled contests ────────────────────────────────────────
+async function fixMissettledContests(matchId, winner) {
+  let contestsFixed = 0;
+
+  const iplMatch  = IPL_MATCHES.find(m => m.id === matchId);
+  const footMatch = FOOTBALL_MATCHES.find(m => m.id === matchId);
+  const match     = iplMatch || footMatch;
+
+  if (!match) {
+    console.warn(`fixMissettledContests: no fixture found for "${matchId}"`);
+    return contestsFixed;
+  }
+
+  const w            = winner.toLowerCase();
+  const matchesTeam1 = w.includes(match.team1.toLowerCase());
+  const matchesTeam2 = w.includes(match.team2.toLowerCase());
+
+  if (!matchesTeam1 && !matchesTeam2) {
+    console.warn(`fixMissettledContests: "${winner}" doesn't match "${match.team1}" or "${match.team2}"`);
+    return contestsFixed;
+  }
+
+  const correctWinningTeam = matchesTeam1 ? match.team1 : match.team2;
+
+  const settledContests = await Contest.find({
+    status:      "settled",
+    team1:       match.team1,
+    team2:       match.team2,
+    winningTeam: { $ne: correctWinningTeam },
+  });
+
+  for (const contest of settledContests) {
+    const totalPot       = contest.entryFee * contest.participants.length;
+    const wrongWinners   = contest.participants.filter(p => p.team === contest.winningTeam);
+    const correctWinners = contest.participants.filter(p => p.team === correctWinningTeam);
+
+    if (wrongWinners.length > 0) {
+      const wrongPrize = Math.floor(totalPot / wrongWinners.length);
+      for (const p of wrongWinners) {
+        const user = await User.findOne({ name: p.username });
+        if (!user) continue;
+        const clawback = Math.min(user.points, wrongPrize);
+        user.points -= clawback;
+        const debt = wrongPrize - clawback;
+        if (debt > 0) console.warn(`Contest fix: ${p.username} short by ${debt} pts in contest ${contest._id}`);
+        await user.save();
+      }
+    }
+
+    if (correctWinners.length === 0) {
+      for (const p of contest.participants) {
+        const user = await User.findOne({ name: p.username });
+        if (!user) continue;
+        user.points += contest.entryFee;
+        await user.save();
+      }
+      contest.winner = "refund";
+    } else {
+      const prize     = Math.floor(totalPot / correctWinners.length);
+      const remainder = totalPot - prize * correctWinners.length;
+      for (let i = 0; i < correctWinners.length; i++) {
+        const user = await User.findOne({ name: correctWinners[i].username });
+        if (!user) continue;
+        user.points += prize + (i === 0 ? remainder : 0);
+        await user.save();
+      }
+      contest.winner = correctWinners.map(p => p.username).join(", ");
+    }
+
+    contest.winningTeam = correctWinningTeam;
+    await contest.save();
+    contestsFixed++;
+    console.log(`Contest "${contest.name}" re-settled → winner: ${contest.winner}`);
+  }
+
+  return contestsFixed;
+}
+
+// ─── Admin: Fix Incorrectly Settled Bets & Contests ──────────────────────────
 app.post("/admin/fix-bet", async (req, res) => {
   try {
     const { matchId, winner } = req.body;
@@ -630,10 +855,10 @@ app.post("/admin/fix-bet", async (req, res) => {
     const bets = await Bet.find({ matchId });
     let fixed = 0;
 
-    // ── no_result: refund all lost bets (stake only) ──────────────────────────
+    // ── no_result: refund only lost bets ─────────────────────────────────────
     if (winner === "no_result") {
       for (const bet of bets) {
-        if (bet.status === "pending") continue; // settle-all handles pending
+        if (bet.status !== "lost") continue; // skip pending, won, already refunded
         const user = await User.findOne({ name: bet.username });
         if (!user) continue;
         user.points += bet.amount;
@@ -645,16 +870,20 @@ app.post("/admin/fix-bet", async (req, res) => {
         fixed++;
         console.log(`Refunded ${bet.amount} pts to ${bet.username} for abandoned match ${matchId}`);
       }
-      return res.json({ message: `Refunded ${fixed} bet(s) for abandoned match ${matchId}.`, fixed, contestsFixed: 0 });
+      return res.json({
+        message: `Refunded ${fixed} bet(s) for abandoned match ${matchId}.`,
+        fixed,
+        contestsFixed: 0,
+      });
     }
 
     // ── normal fix: correct wrong winner ─────────────────────────────────────
     for (const bet of bets) {
       const user = await User.findOne({ name: bet.username });
       if (!user) continue;
-      const won = winner.toLowerCase().includes(bet.team.toLowerCase());
+      const won        = winner.toLowerCase().includes(bet.team.toLowerCase());
       const multiplier = bet.odds && bet.odds > 1 ? bet.odds : 2.0;
-      const payout = Math.floor(bet.amount * multiplier);
+      const payout     = Math.floor(bet.amount * multiplier);
 
       if (bet.status === "lost" && won) {
         user.points += payout;
@@ -668,7 +897,7 @@ app.post("/admin/fix-bet", async (req, res) => {
         const debt = payout - clawback;
         if (debt > 0) {
           user.lockedPoints = Math.max(0, (user.lockedPoints || 0) - debt);
-          console.warn(`Bet fix: ${bet.username} short by ${debt} pts (already spent wrong payout) on ${matchId}`);
+          console.warn(`Bet fix: ${bet.username} short by ${debt} pts on ${matchId}`);
         }
         await user.save();
         bet.status = "lost";
@@ -677,149 +906,17 @@ app.post("/admin/fix-bet", async (req, res) => {
       }
     }
 
-    let contestsFixed = 0;
-    if (matchId.startsWith("ipl-")) {
-      const iplMatch = IPL_MATCHES.find(m => m.id === matchId);
-      if (iplMatch) {
-        const correctWinningTeam = winner.toLowerCase().includes(iplMatch.team1.toLowerCase()) ? iplMatch.team1 : iplMatch.team2;
-        const settledContests = await Contest.find({ status: "settled", team1: iplMatch.team1, team2: iplMatch.team2 });
-        for (const contest of settledContests) {
-          if (contest.winningTeam === correctWinningTeam) continue;
-          const totalPot = contest.entryFee * contest.participants.length;
-          const wrongWinners   = contest.participants.filter(p => p.team === contest.winningTeam);
-          const correctWinners = contest.participants.filter(p => p.team === correctWinningTeam);
-          if (wrongWinners.length > 0) {
-            const wrongPrize = Math.floor(totalPot / wrongWinners.length);
-            for (const p of wrongWinners) {
-              const u = await User.findOne({ name: p.username });
-              if (!u) continue;
-              const clawback = Math.min(u.points, wrongPrize);
-              u.points -= clawback;
-              const debt = wrongPrize - clawback;
-              if (debt > 0) console.warn(`Contest fix: ${p.username} short by ${debt} pts in contest ${contest._id}`);
-              await u.save();
-            }
-          }
-          if (correctWinners.length === 0) {
-            for (const p of contest.participants) { const u = await User.findOne({ name: p.username }); if (u) { u.points += contest.entryFee; await u.save(); } }
-            contest.winner = "refund";
-          } else {
-            const prize = Math.floor(totalPot / correctWinners.length);
-            const remainder = totalPot - prize * correctWinners.length;
-            for (let i = 0; i < correctWinners.length; i++) {
-              const u = await User.findOne({ name: correctWinners[i].username });
-              if (u) { u.points += prize + (i === 0 ? remainder : 0); await u.save(); }
-            }
-            contest.winner = correctWinners.map(w => w.username).join(", ");
-          }
-          contest.winningTeam = correctWinningTeam;
-          await contest.save();
-          contestsFixed++;
-          console.log(`Contest "${contest.name}" re-settled → winner: ${contest.winner}`);
-        }
-      }
-    }
+    // ── fix contests ──────────────────────────────────────────────────────────
+    const contestsFixed = await fixMissettledContests(matchId, winner);
 
-    res.json({ message: `Fixed ${fixed} bet(s) and ${contestsFixed} contest(s) for ${matchId}.`, winner, fixed, contestsFixed });
+    res.json({
+      message: `Fixed ${fixed} bet(s) and ${contestsFixed} contest(s) for ${matchId}.`,
+      winner,
+      fixed,
+      contestsFixed,
+    });
   } catch (err) {
     console.error("admin/fix-bet error:", err.message);
-    res.status(500).json({ message: err.message });
-  }
-});
-// ─── Admin: Fix Fantasy11 double ipl- prefix in matchId ──────────────────────
-app.post("/admin/settle-all", async (req, res) => {
-  try {
-    const { matchId, winner } = req.body;
-    if (!matchId || !winner) return res.status(400).json({ message: "matchId and winner are required" });
-    const iplMatch = IPL_MATCHES.find(m => m.id === matchId);
-
-    // 1. Settle Bets
-    const pendingBets = await Bet.find({ matchId, status: "pending" });
-    let betsSettled = 0;
-
-    if (winner === "no_result") {
-      // Refund all bets
-      for (const bet of pendingBets) {
-        const user = await User.findOne({ name: bet.username });
-        if (!user) continue;
-        user.points += bet.amount;
-        user.lockedPoints = Math.max(0, (user.lockedPoints || 0) - bet.amount);
-        await user.save();
-        bet.status = "refunded";
-        bet.result = "refunded";
-        bet.pointsAwarded = 0;
-        await bet.save();
-        betsSettled++;
-      }
-    } else {
-      for (const bet of pendingBets) {
-        const user = await User.findOne({ name: bet.username });
-        if (!user) continue;
-        const won = winner.toLowerCase().includes(bet.team.toLowerCase());
-        if (won) { const multiplier = bet.odds && bet.odds > 1 ? bet.odds : 2.0; user.points += Math.floor(bet.amount * multiplier); }
-        user.lockedPoints = Math.max(0, (user.lockedPoints || 0) - bet.amount);
-        await user.save(); bet.status = won ? "won" : "lost"; await bet.save(); betsSettled++;
-      }
-    }
-
-    // 2. Settle Contests
-    let contestsSettled = 0;
-    if (iplMatch) {
-      const relatedContests = await Contest.find({ status: { $in: ["open", "locked"] }, team1: iplMatch.team1, team2: iplMatch.team2 });
-      for (const contest of relatedContests) {
-        const winnerTeam = winner === "no_result"
-          ? "no_result"
-          : winner.toLowerCase().includes(iplMatch.team1.toLowerCase()) ? iplMatch.team1 : iplMatch.team2;
-        const totalPot = contest.entryFee * contest.participants.length;
-        await settleContest(contest, winnerTeam, totalPot);
-        contestsSettled++;
-      }
-    }
-
-    // 3. Settle Challenges
-    let challengesSettled = 0;
-    const activeChallenges = await Challenge.find({ matchId, status: "active" });
-    for (const challenge of activeChallenges) {
-      const challengerUser = await User.findOne({ name: challenge.challenger });
-      const opponentUser   = await User.findOne({ name: challenge.opponent });
-      if (!challengerUser || !opponentUser) continue;
-
-      if (winner === "no_result") {
-        // Refund both
-        challengerUser.points += challenge.wager;
-        opponentUser.points += challenge.wager;
-        await challengerUser.save();
-        await opponentUser.save();
-        challenge.winner = "no_result";
-        challenge.status = "settled";
-        await challenge.save();
-      } else {
-        const totalPot = challenge.wager * 2;
-        let challengeWinner = null;
-        if (winner.toLowerCase().includes(challenge.challengerTeam.toLowerCase())) { challengerUser.points += totalPot; challengeWinner = challenge.challenger; await challengerUser.save(); }
-        else if (winner.toLowerCase().includes(challenge.opponentTeam.toLowerCase())) { opponentUser.points += totalPot; challengeWinner = challenge.opponent; await opponentUser.save(); }
-        else { challengerUser.points += challenge.wager; opponentUser.points += challenge.wager; challengeWinner = "draw"; await challengerUser.save(); await opponentUser.save(); }
-        challenge.winner = challengeWinner; challenge.status = "settled"; await challenge.save();
-      }
-      challengesSettled++;
-    }
-    res.json({ 
-      message: `✅ All settled for ${matchId}! Bets: ${betsSettled}, Contests: ${contestsSettled}, Challenges: ${challengesSettled}`, 
-      winner, betsSettled, contestsSettled, challengesSettled, 
-      nextStep: `⚠️ Run fantasy11-settle/auto/${matchId} next with Cricbuzz ID!` 
-    });
-  } catch (err) { console.error("admin/settle-all error:", err.message); res.status(500).json({ message: err.message }); }
-});
-
-app.post("/admin/credit-points", async (req, res) => {
-  try {
-    const { username, points, reason } = req.body;
-    const user = await User.findOne({ name: username });
-    if (!user) return res.status(404).json({ message: "User not found" });
-    user.points += points;
-    await user.save();
-    res.json({ message: `✅ Credited ${points} pts to ${username}. Reason: ${reason}`, newPoints: user.points });
-  } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });

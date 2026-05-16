@@ -698,15 +698,22 @@
 
     useEffect(() => {
       if (!prefilledMatch) { setMatchStatus(null); return; }
-      async function checkMatchStatus() {
-        try {
-          const res  = await fetch(`${API}/ipl-matches`);
-          const data = await res.json();
-          const list = Array.isArray(data) ? data : data.matches || [];
-          const found = list.find(m => m.id === prefilledMatch.matchId);
-          if (found) setMatchStatus(found.status);
-        } catch (err) { console.error("Failed to check match status", err); }
-      }
+
+   async function checkMatchStatus() {
+  try {
+    const isFootball = prefilledMatch.matchId?.startsWith("epl-") || 
+                       prefilledMatch.matchId?.startsWith("ucl-");
+
+    const endpoint = isFootball ? `${API}/football-matches` : `${API}/ipl-matches`;
+    const res  = await fetch(endpoint);
+    const data = await res.json();
+    const list = Array.isArray(data) ? data : (data.matches || []);
+    const found = list.find(m => m.id === prefilledMatch.matchId);
+    if (found) setMatchStatus(found.status);
+  } catch (err) {
+    console.error("Failed to check match status", err);
+  }
+}
       checkMatchStatus();
       const interval = setInterval(checkMatchStatus, 60000);
       return () => clearInterval(interval);
@@ -826,18 +833,90 @@
       } catch (err) { console.error("Failed to fetch leaderboard", err); }
     };
 const handleAuth = async () => {
-  if (!inputName.trim() || !inputPassword.trim()) { setError("Please enter both username and password!"); return; }
-  if (authMode === "login") {
-    setLoading(true); setError("");
-    try {
-      const res  = await fetch(`${API}/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: inputName.trim(), password: inputPassword }) });
-      const data = await res.json();
-      if (res.ok) { setUsername(data.name); setPoints(data.points); setLockedPoints(data.lockedPoints || 0); toast.success("Welcome back!", `Logged in as ${data.name}`, 3000); setScreen("home"); fetchLeaderboard(); }
-      else { setError(data.message || "Something went wrong!"); toast.error("Login Failed", data.message); }
-    } catch { setError("Can't connect to server!"); }
-    setLoading(false);
+  if (!inputName.trim() || !inputPassword.trim()) {
+    setError("Please enter both username and password!");
     return;
   }
+
+  // ── Login ────────────────────────────────────────────────────────────────
+  if (authMode === "login") {
+    setLoading(true);
+    setError("");
+    try {
+      const res  = await fetch(`${API}/login`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ name: inputName.trim(), password: inputPassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setUsername(data.name);
+        setPoints(data.points);
+        setLockedPoints(data.lockedPoints || 0);
+        toast.success("Welcome back!", `Logged in as ${data.name}`, 3000);
+        setScreen("home");
+        fetchLeaderboard();
+      } else {
+        setError(data.message || "Something went wrong!");
+        toast.error("Login Failed", data.message);
+      }
+    } catch {
+      setError("Can't connect to server!");
+    }
+    setLoading(false);
+    return;
+  } // ← closes if (authMode === "login") only — NOT the function
+
+  // ── Register: send OTP ───────────────────────────────────────────────────
+  if (!otpStep) {
+    if (!pendingEmail.trim()) { setError("Please enter your email!"); return; }
+    setLoading(true);
+    setError("");
+    try {
+      const res  = await fetch(`${API}/register/send-otp`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ name: inputName.trim(), email: pendingEmail.trim(), password: inputPassword }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setOtpStep(true);
+        toast.info("OTP Sent", `Check ${pendingEmail} for your code`, 4000);
+      } else {
+        setError(data.message || "Failed to send OTP");
+      }
+    } catch {
+      setError("Can't connect to server!");
+    }
+    setLoading(false);
+    return;
+  } // ← closes if (!otpStep)
+
+  // ── Register: verify OTP ─────────────────────────────────────────────────
+  setLoading(true);
+  setError("");
+  try {
+    const res  = await fetch(`${API}/register/verify-otp`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ email: pendingEmail.trim(), otp: otpInput.trim() }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      setUsername(data.name);
+      setPoints(data.points);
+      setLockedPoints(data.lockedPoints || 0);
+      toast.success("Account created!", `Welcome ${data.name} · 1000 pts`, 3000);
+      setScreen("home");
+      fetchLeaderboard();
+    } else {
+      setError(data.message || "Wrong OTP");
+    }
+  } catch {
+    setError("Can't connect to server!");
+  }
+  setLoading(false);
+}; // ← closes handleAuth
   if (!otpStep) {
     if (!pendingEmail.trim()) { setError("Please enter your email!"); return; }
     setLoading(true); setError("");
@@ -874,113 +953,151 @@ const handleAuth = async () => {
       setScreen("fantasy11");
     };
 
-    const placeBet = async () => {
-      if (matchStatus === "live")      { setError("Betting is closed — this match has already started!"); toast.warning("Bets Locked", "This match has already started."); return; }
-      if (matchStatus === "completed") { setError("Betting is closed — this match has already ended!"); toast.warning("Bets Locked", "This match has already ended."); return; }
-      const amount = parseInt(betAmount);
-      if (!amount || amount <= 0 || amount > points) return;
-      if (!selectedTeam)   { setError("Please pick a team!"); toast.error("Pick a Team", "Select a team before placing your bet."); return; }
-      if (!prefilledMatch) { setError("Please go to 🏏 IPL tab and click Bet Now on a match first!"); return; }
-      setLoading(true); setError("");
-      try {
-        const teamOdds = prefilledMatch.odds?.[selectedTeam] || 2.0;
-        const res  = await fetch(`${API}/bet`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: username, amount,
-            matchId: String(prefilledMatch.matchId),
-            matchLabel: prefilledMatch.matchLabel,
-            team: selectedTeam, odds: teamOdds,
-          }),
-        });
-        const data = await res.json();
-        if (res.ok) {
-          setAnimatePoints(true); setTimeout(() => setAnimatePoints(false), 1000);
-          const prevPoints = points;
-          setPoints(data.points); setLockedPoints(data.lockedPoints);
-          // floating points — show locked amount as negative (points deducted)
-          fireFloat(-(amount));
-          toast.bet(`${amount} pts on ${selectedTeam} · ${prefilledMatch.matchLabel}`, 4000);
-          setBetPlaced({ amount, team: selectedTeam, matchLabel: prefilledMatch.matchLabel, odds: teamOdds, potentialWin: Math.floor(amount * teamOdds) });
-          fetchMyBets(); fetchAllHistory(); fetchLeaderboard();
-          fireConfetti();
+  const placeBet = async () => {
+  // ── Match status guards ──────────────────────────────────────────────────
+  if (matchStatus === "live") {
+    setError("Betting is closed — this match has already started!");
+    toast.warning("Bets Locked", "This match has already started.");
+    return;
+  }
+  if (matchStatus === "completed") {
+    setError("Betting is closed — this match has already ended!");
+    toast.warning("Bets Locked", "This match has already ended.");
+    return;
+  }
+
+  // ── Input validation ─────────────────────────────────────────────────────
+  const amount = parseInt(betAmount);
+  if (!amount || amount <= 0 || amount > points) return;
+
+  if (!selectedTeam) {
+    setError("Please pick a team!");
+    toast.error("Pick a Team", "Select a team before placing your bet.");
+    return;
+  }
+
+  if (!prefilledMatch) {
+    setError("Please go to 🏏 IPL or ⚽ Football tab and click Bet Now on a match first!");
+    return;
+  }
+
+  const isFootball = prefilledMatch.matchId?.startsWith("epl-") ||
+                     prefilledMatch.matchId?.startsWith("ucl-");
+
+  // ── Place bet ────────────────────────────────────────────────────────────
+  setLoading(true);
+  setError("");
+
+  try {
+    const teamOdds = prefilledMatch.odds?.[selectedTeam] || 2.0;
+
+    const res  = await fetch(`${API}/bet`, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name:       username,
+        amount,
+        matchId:    String(prefilledMatch.matchId),
+        matchLabel: prefilledMatch.matchLabel,
+        team:       selectedTeam,
+        odds:       teamOdds,
+      }),
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      setAnimatePoints(true);
+      setTimeout(() => setAnimatePoints(false), 1000);
+      setPoints(data.points);
+      setLockedPoints(data.lockedPoints);
+      fireFloat(-amount);
+      toast.bet(`${amount} pts on ${selectedTeam} · ${prefilledMatch.matchLabel}`, 4000);
       setBetPlaced({
-  themeId: userTheme,
-  amount,
-  team: selectedTeam,
-  matchLabel: prefilledMatch.matchLabel,
-  odds: teamOdds,
-  potentialWin: Math.floor(amount * teamOdds),
-});}
-else{
-          setError(data.message || "Bet failed!");
-          toast.error("Bet Failed", data.message || "Something went wrong. Try again.");
-        }
-      } catch (err) {
-        setError("Can't connect to server!");
-        toast.error("Connection Error", "Can't reach the server. Try again.");
-      }
-      setLoading(false);
-    };
+        themeId:      userTheme,
+        amount,
+        team:         selectedTeam,
+        matchLabel:   prefilledMatch.matchLabel,
+        odds:         teamOdds,
+        potentialWin: Math.floor(amount * teamOdds),
+      });
+      fireConfetti();
+      fetchMyBets();
+      fetchAllHistory();
+      fetchLeaderboard();
+    } else {
+      setError(data.message || "Bet failed!");
+      toast.error("Bet Failed", data.message || "Something went wrong. Try again.");
+    }
+  } catch (err) {
+    setError("Can't connect to server!");
+    toast.error("Connection Error", "Can't reach the server. Try again.");
+  }
 
-    const handleLogout = () => {
-      setUsername(""); setInputName(""); setInputPassword(""); setPoints(1000); setLockedPoints(0);
-      setMyBets([]); setAllHistory([]); setLeaderboard([]);
-      setScreen("auth"); setAuthMode("login"); setPrefilledMatch(null); setMatchStatus(null);
-      toast.info("Logged out", "See you next time! 👋", 2500);
-      resetHome();
-    };
+  setLoading(false);
+}; // ← end of placeBet
 
-    const statusColor = (s) => ({
-      won:       "#1D9E75",
-      lost:      "#E24B4A",
-      draw:      "#888780",
-      refund:    "#185FA5",
-      refunded:  "#185FA5",
-      active:    "#7F77DD",
-      cancelled: "#888780",
-      settled:   "#3C3489",
-    }[s] || "#BA7517");
+// ── These must all be OUTSIDE placeBet ──────────────────────────────────────
 
-    const statusEmoji = (s) => ({
-      won:       "🏆",
-      lost:      "😢",
-      draw:      "🤝",
-      refund:    "🔄",
-      refunded:  "🔄",
-      active:    "⚡",
-      cancelled: "❌",
-      settled:   "✅",
-    }[s] || "⏳");
+const handleLogout = () => {
+  setUsername(""); setInputName(""); setInputPassword("");
+  setPoints(1000); setLockedPoints(0);
+  setMyBets([]); setAllHistory([]); setLeaderboard([]);
+  setScreen("auth"); setAuthMode("login");
+  setPrefilledMatch(null); setMatchStatus(null);
+  toast.info("Logged out", "See you next time! 👋", 2500);
+  resetHome();
+};
 
-    const statusLabel = (s) => ({
-      won:       "WON",
-      lost:      "LOST",
-      draw:      "DRAW",
-      refund:    "REFUNDED",
-      refunded:  "REFUNDED",
-      active:    "ACTIVE",
-      cancelled: "CANCELLED",
-      settled:   "SETTLED",
-    }[s] || "PENDING");
+const statusColor = (s) => ({
+  won:       "#1D9E75",
+  lost:      "#E24B4A",
+  draw:      "#888780",
+  refund:    "#185FA5",
+  refunded:  "#185FA5",
+  active:    "#7F77DD",
+  cancelled: "#888780",
+  settled:   "#3C3489",
+}[s] || "#BA7517");
 
-    const pointsDisplay = (item) => {
-      if (item.type === "fantasy11") {
-        if (item.fantasyPoints !== null && item.fantasyPoints !== undefined) return `${item.fantasyPoints} pts scored`;
-        return item.locked ? "⚡ In progress" : "⏳ Pending";
-      }
-      if (item.status === "won") {
-        if (item.type === "bet")       return `+${Math.floor(item.amount * (item.odds || 2.0)) - item.amount} pts profit`;
-        if (item.type === "contest")   return `+${item.prize - item.amount} pts profit`;
-        if (item.type === "challenge") return `+${item.amount} pts profit`;
-      }
-      if (item.status === "lost")                                          return `-${item.amount} pts`;
-      if (item.status === "draw")                                          return "refunded";
-      if (item.status === "refund" || item.status === "refunded")         return "↩️ refunded";
-      if (item.status === "cancelled")                                     return "refunded";
-      return `🔒 ${item.amount} pts`;
-    };
+const statusEmoji = (s) => ({
+  won:       "🏆",
+  lost:      "😢",
+  draw:      "🤝",
+  refund:    "🔄",
+  refunded:  "🔄",
+  active:    "⚡",
+  cancelled: "❌",
+  settled:   "✅",
+}[s] || "⏳");
+
+const statusLabel = (s) => ({
+  won:       "WON",
+  lost:      "LOST",
+  draw:      "DRAW",
+  refund:    "REFUNDED",
+  refunded:  "REFUNDED",
+  active:    "ACTIVE",
+  cancelled: "CANCELLED",
+  settled:   "SETTLED",
+}[s] || "PENDING");
+
+const pointsDisplay = (item) => {
+  if (item.type === "fantasy11") {
+    if (item.fantasyPoints !== null && item.fantasyPoints !== undefined)
+      return `${item.fantasyPoints} pts scored`;
+    return item.locked ? "⚡ In progress" : "⏳ Pending";
+  }
+  if (item.status === "won") {
+    if (item.type === "bet")       return `+${Math.floor(item.amount * (item.odds || 2.0)) - item.amount} pts profit`;
+    if (item.type === "contest")   return `+${item.prize - item.amount} pts profit`;
+    if (item.type === "challenge") return `+${item.amount} pts profit`;
+  }
+  if (item.status === "lost")                                      return `-${item.amount} pts`;
+  if (item.status === "draw")                                      return "refunded";
+  if (item.status === "refund" || item.status === "refunded")     return "↩️ refunded";
+  if (item.status === "cancelled")                                 return "refunded";
+  return `🔒 ${item.amount} pts`;
+};
 
     const leaderboardList = () => {
       const others = leaderboard.filter(p => p.name !== username);
@@ -1089,489 +1206,463 @@ else{
         )}
 
         {/* ── MAIN APP ── */}
-        {screen !== "auth" && (
+{screen !== "auth" && (
+  <>
+    <nav className="nav">
+      <div className="nav-logo" onClick={() => setScreen("home")} style={{ cursor: "pointer" }}>⚡ FANTASYBET</div>
+      <div className="nav-links">
+        <button className={screen === "home"        ? "active" : ""} onClick={() => setScreen("home")}>Home</button>
+        <button className={screen === "matches"     ? "active" : ""} onClick={() => setScreen("matches")}>🏏 IPL</button>
+        <button className={screen === "football"    ? "active" : ""} onClick={() => setScreen("football")}>⚽ Football</button>
+        <button className={screen === "fantasy11"   ? "active" : ""} onClick={() => setScreen("fantasy11")}>🏆 Fantasy 11</button>
+        <button className={screen === "leaderboard" ? "active" : ""} onClick={() => { fetchLeaderboard(); setScreen("leaderboard"); }}>Leaderboard</button>
+        <button className={screen === "profile"     ? "active" : ""} onClick={() => setScreen("profile")}>👤 Profile</button>
+        <button className={screen === "history"     ? "active" : ""} onClick={() => { fetchAllHistory(); setScreen("history"); }}>
+          History {pendingCount > 0 && (
+            <span style={{ background: "#BA7517", color: "#fff", borderRadius: 99, padding: "1px 6px", fontSize: 10, marginLeft: 4 }}>{pendingCount}</span>
+          )}
+        </button>
+        <button className={screen === "multiplayer" ? "active" : ""} onClick={() => setScreen("multiplayer")}>⚔️ Multiplayer</button>
+        <button className={screen === "mines"       ? "active" : ""} onClick={() => setScreen("mines")}>💣 Mines</button>
+      </div>
+      <div className="nav-right">
+        <div className={`nav-points ${animatePoints ? "pulse" : ""}`}>
+          <span>💰</span>
+          <span className="points-value">{points.toLocaleString()}</span>
+          <span className="points-label">pts</span>
+        </div>
+        {lockedPoints > 0 && (
+          <div className="nav-points" style={{ borderColor: "#BA7517", opacity: 0.8 }}>
+            <span>🔒</span>
+            <span className="points-value" style={{ color: "#BA7517" }}>{lockedPoints.toLocaleString()}</span>
+            <span className="points-label">locked</span>
+          </div>
+        )}
+        <ThemeSwitcher />
+        <button className="logout-btn" onClick={handleLogout}>Logout</button>
+      </div>
+    </nav>
+
+    {/* ── HOME ── */}
+    {screen === "home" && (
+      <div className="screen home-screen">
+        <div className="hero">
+          <div className="hero-badge">🏆 FANTASY SPORTS BETTING</div>
+          <h1 className="hero-title">Welcome,<br /><span className="accent">{username}!</span></h1>
+          <p className="hero-sub">
+            You have <strong>{displayPoints.toLocaleString()} points</strong> available
+            {lockedPoints > 0 && <span> · <span style={{ color: "#BA7517" }}>🔒 {lockedPoints} locked</span></span>}
+          </p>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+            <button className="btn-primary" onClick={() => setScreen("matches")}>🏏 Bet on IPL →</button>
+            <button className="btn-primary" onClick={() => setScreen("fantasy11")} style={{ background: "#BA7517" }}>🏆 Fantasy 11 →</button>
+            <button className="btn-primary" onClick={() => { fetchAllHistory(); setScreen("history"); }} style={{ background: "#1D9E75" }}>My Bets →</button>
+            <button className="btn-primary" onClick={() => setScreen("mines")} style={{ background: "#E24B4A" }}>💣 Mines →</button>
+          </div>
+        </div>
+
+        <PointsProgressCard points={points} lockedPoints={lockedPoints} allHistory={allHistory} />
+        <FeaturedMatchBanner onBetClick={() => setScreen("matches")} onFantasyClick={() => setScreen("fantasy11")} />
+
+        <div className="sports-grid">
+          {SPORTS.map(sport => (
+            <div
+              key={sport.id}
+              className="sport-card"
+              onClick={() => { if (sport.available) setScreen(sport.id === "football" ? "football" : "matches"); }}
+              style={{
+                background: `linear-gradient(145deg, ${sport.gradientFrom} 0%, ${sport.gradientTo} 100%)`,
+                border: `1px solid ${sport.accentColor}33`,
+                boxShadow: sport.available ? `0 4px 24px ${sport.glowColor}` : "none",
+                cursor: sport.available ? "pointer" : "default",
+                opacity: sport.available ? 1 : 0.75,
+                position: "relative", overflow: "hidden",
+                transition: "transform 0.18s, box-shadow 0.18s",
+              }}
+              onMouseEnter={e => {
+                if (sport.available) {
+                  e.currentTarget.style.transform = "translateY(-3px)";
+                  e.currentTarget.style.boxShadow = `0 8px 32px ${sport.glowColor}`;
+                }
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = sport.available ? `0 4px 24px ${sport.glowColor}` : "none";
+              }}
+            >
+              <div style={{ position: "absolute", inset: 0, opacity: 0.05, backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "16px 16px", pointerEvents: "none" }} />
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: sport.available ? `linear-gradient(90deg, ${sport.accentColor}88, ${sport.accentColor})` : "rgba(255,255,255,0.1)", borderRadius: "12px 12px 0 0" }} />
+              <span className="sport-emoji" style={{ fontSize: 36, display: "block", marginBottom: 8, position: "relative" }}>{sport.emoji}</span>
+              <span className="sport-name" style={{ position: "relative", color: "#fff", fontWeight: 700 }}>{sport.name}</span>
+              <span style={{ display: "block", fontSize: 11, color: sport.available ? `${sport.accentColor}cc` : "rgba(255,255,255,0.3)", marginTop: 3, position: "relative" }}>{sport.tagline}</span>
+              {sport.available ? (
+                <div style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 5, background: `${sport.accentColor}22`, border: `1px solid ${sport.accentColor}44`, borderRadius: 99, padding: "4px 12px", fontSize: 11, color: sport.accentColor, fontWeight: 700, position: "relative" }}>
+                  Play Now →
+                </div>
+              ) : (
+                <div style={{ marginTop: 12, display: "inline-flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 99, padding: "4px 12px", fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.35)", position: "relative", letterSpacing: "0.04em" }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(255,255,255,0.3)", display: "inline-block", flexShrink: 0 }} />
+                  Coming Soon
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        {allHistory.length > 0 && <RecentActivityFeed allHistory={allHistory} />}
+      </div>
+    )}
+
+    {/* ── IPL MATCHES ── */}
+    {screen === "matches" && (
+      <div className="screen">
+        <Matches onBetOnMatch={handleBetOnMatch} onFantasy11={handleFantasy11} />
+      </div>
+    )}
+
+    {/* ── FOOTBALL MATCHES ── */}
+    {screen === "football" && (
+      <div className="screen">
+        <Matches onBetOnMatch={handleBetOnMatch} onFantasy11={handleFantasy11} defaultSportTab="epl" />
+      </div>
+    )}
+
+    {/* ── BET SCREEN ── */}
+    {screen === "bet" && (
+      <div className="screen bet-screen">
+        <h2 className="screen-title">Place Your Bet</h2>
+        {!prefilledMatch ? (
+          <div style={{ textAlign: "center", padding: 40 }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>
+              {prefilledMatch?.matchId?.startsWith("epl-") || prefilledMatch?.matchId?.startsWith("ucl-") ? "⚽" : "🏏"}
+            </div>
+            <p style={{ color: "var(--muted)", marginBottom: 20 }}>Pick a match first, then come back to bet!</p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+              <button className="btn-primary" onClick={() => setScreen("matches")}>🏏 Browse IPL →</button>
+              <button className="btn-primary" onClick={() => setScreen("football")} style={{ background: "#3b82f6" }}>⚽ Browse Football →</button>
+            </div>
+          </div>
+        ) : (
           <>
-            <nav className="nav">
-              <div className="nav-logo" onClick={() => setScreen("home")} style={{ cursor: "pointer" }}>⚡ FANTASYBET</div>
-              <div className="nav-links">
-                <button className={screen === "home"        ? "active" : ""} onClick={() => setScreen("home")}>Home</button>
-                <button className={screen === "matches"     ? "active" : ""} onClick={() => setScreen("matches")}>🏏 IPL</button>
-                <button className={screen === "fantasy11"   ? "active" : ""} onClick={() => setScreen("fantasy11")}>🏆 Fantasy 11</button>
-                <button className={screen === "leaderboard" ? "active" : ""} onClick={() => { fetchLeaderboard(); setScreen("leaderboard"); }}>Leaderboard</button>
-                <button className={screen === "profile"     ? "active" : ""} onClick={() => setScreen("profile")}>👤 Profile</button>
-                <button className={screen === "history"     ? "active" : ""} onClick={() => { fetchAllHistory(); setScreen("history"); }}>
-                  History {pendingCount > 0 && (
-                    <span style={{ background: "#BA7517", color: "#fff", borderRadius: 99, padding: "1px 6px", fontSize: 10, marginLeft: 4 }}>{pendingCount}</span>
+            {/* ── Selected match banner ── */}
+            <div style={{ background: "rgba(29,158,117,0.1)", border: "1px solid #1D9E75", borderRadius: 12, padding: "12px 16px", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div>
+                <div style={{ fontSize: 11, color: "#1D9E75", fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>Selected Match</div>
+                <div style={{ fontWeight: 600, fontSize: 16 }}>
+                  {prefilledMatch.matchId?.startsWith("epl-") || prefilledMatch.matchId?.startsWith("ucl-") ? "⚽" : "🏏"} {prefilledMatch.matchLabel}
+                  {matchStatus === "live" && (
+                    <span style={{ marginLeft: 10, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "#FCEBEB", color: "#A32D2D", border: "0.5px solid #F09595" }}>● LIVE</span>
                   )}
-                </button>
-                <button className={screen === "multiplayer" ? "active" : ""} onClick={() => setScreen("multiplayer")}>⚔️ Multiplayer</button>
-                <button className={screen === "mines"       ? "active" : ""} onClick={() => setScreen("mines")}>💣 Mines</button>
-              </div>
-              <div className="nav-right">
-                <div className={`nav-points ${animatePoints ? "pulse" : ""}`}>
-                  <span>💰</span>
-                  <span className="points-value">{points.toLocaleString()}</span>
-                  <span className="points-label">pts</span>
                 </div>
-                {lockedPoints > 0 && (
-                  <div className="nav-points" style={{ borderColor: "#BA7517", opacity: 0.8 }}>
-                    <span>🔒</span>
-                    <span className="points-value" style={{ color: "#BA7517" }}>{lockedPoints.toLocaleString()}</span>
-                    <span className="points-label">locked</span>
-                  </div>
-                )}
-                <ThemeSwitcher />
-                <button className="logout-btn" onClick={handleLogout}>Logout</button>
               </div>
-            </nav>
+              <button
+                onClick={() => { setPrefilledMatch(null); setSelectedSport(null); setSelectedTeam(null); setMatchStatus(null); }}
+                style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 20 }}
+              >×</button>
+            </div>
 
-            {/* ── HOME ── */}
-            {screen === "home" && (
-              <div className="screen home-screen">
-                <div className="hero">
-                  <div className="hero-badge">🏆 FANTASY SPORTS BETTING</div>
-                  <h1 className="hero-title">Welcome,<br /><span className="accent">{username}!</span></h1>
-                  <p className="hero-sub">
-                    You have <strong>{displayPoints.toLocaleString()} points</strong> available
-                    {lockedPoints > 0 && <span> · <span style={{ color: "#BA7517" }}>🔒 {lockedPoints} locked</span></span>}
-                  </p>
-                  <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
-                    <button className="btn-primary" onClick={() => setScreen("matches")}>🏏 Bet on IPL →</button>
-                    <button className="btn-primary" onClick={() => setScreen("fantasy11")} style={{ background: "#BA7517" }}>🏆 Fantasy 11 →</button>
-                    <button className="btn-primary" onClick={() => { fetchAllHistory(); setScreen("history"); }} style={{ background: "#1D9E75" }}>My Bets →</button>
-                    <button className="btn-primary" onClick={() => setScreen("mines")} style={{ background: "#E24B4A" }}>💣 Mines →</button>
+            {/* ── Betting locked banner ── */}
+            {isBettingLocked && (
+              <div style={{ background: "#FCEBEB", border: "0.5px solid #F09595", borderRadius: 12, padding: "16px 20px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 12 }}>
+                <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#F7C1C1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}>🔒</div>
+                <div>
+                  <div style={{ fontWeight: 600, color: "#A32D2D", marginBottom: 4, fontSize: 14 }}>Bets are locked for this match</div>
+                  <div style={{ fontSize: 13, color: "#993C1D", lineHeight: 1.5 }}>
+                    {matchStatus === "live" ? "This match has already started." : "This match has already ended."} Go back and pick an upcoming match.
+                  </div>
+                  <div style={{ display: "flex", gap: 10, marginTop: 12 }}>
+                    <button className="btn-primary" style={{ padding: "8px 16px", fontSize: 13 }} onClick={() => setScreen("matches")}>🏏 IPL Matches →</button>
+                    <button className="btn-primary" style={{ padding: "8px 16px", fontSize: 13, background: "#3b82f6" }} onClick={() => setScreen("football")}>⚽ Football →</button>
                   </div>
                 </div>
-
-                {/* ── IMPROVEMENT 4: Points Progress Card (replaces flat stats row) ── */}
-                <PointsProgressCard
-                  points={points}
-                  lockedPoints={lockedPoints}
-                  allHistory={allHistory}
-                />
-
-                {/* ── IMPROVEMENT 3: Featured Match Banner ── */}
-                <FeaturedMatchBanner
-                  onBetClick={() => setScreen("matches")}
-                  onFantasyClick={() => setScreen("fantasy11")}
-                />
-
-                {/* ── IMPROVEMENT 1 & 2: Redesigned Sport Cards ── */}
-                <div className="sports-grid">
-                  {SPORTS.map(sport => (
-                    <div
-                      key={sport.id}
-                      className="sport-card"
-                      onClick={() => {
-                        if (sport.available) setScreen("matches");
-                      }}
-                      style={{
-                        background: `linear-gradient(145deg, ${sport.gradientFrom} 0%, ${sport.gradientTo} 100%)`,
-                        border: `1px solid ${sport.accentColor}33`,
-                        boxShadow: sport.available ? `0 4px 24px ${sport.glowColor}` : "none",
-                        cursor: sport.available ? "pointer" : "default",
-                        opacity: sport.available ? 1 : 0.75,
-                        position: "relative",
-                        overflow: "hidden",
-                        transition: "transform 0.18s, box-shadow 0.18s",
-                      }}
-                      onMouseEnter={e => {
-                        if (sport.available) {
-                          e.currentTarget.style.transform = "translateY(-3px)";
-                          e.currentTarget.style.boxShadow = `0 8px 32px ${sport.glowColor}`;
-                        }
-                      }}
-                      onMouseLeave={e => {
-                        e.currentTarget.style.transform = "translateY(0)";
-                        e.currentTarget.style.boxShadow = sport.available ? `0 4px 24px ${sport.glowColor}` : "none";
-                      }}
-                    >
-                      {/* subtle grid texture overlay */}
-                      <div style={{
-                        position: "absolute", inset: 0, opacity: 0.05,
-                        backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)",
-                        backgroundSize: "16px 16px",
-                        pointerEvents: "none",
-                      }} />
-
-                      {/* accent bar at top */}
-                      <div style={{
-                        position: "absolute", top: 0, left: 0, right: 0, height: 3,
-                        background: sport.available
-                          ? `linear-gradient(90deg, ${sport.accentColor}88, ${sport.accentColor})`
-                          : "rgba(255,255,255,0.1)",
-                        borderRadius: "12px 12px 0 0",
-                      }} />
-
-                      <span className="sport-emoji" style={{ fontSize: 36, display: "block", marginBottom: 8, position: "relative" }}>
-                        {sport.emoji}
-                      </span>
-                      <span className="sport-name" style={{ position: "relative", color: "#fff", fontWeight: 700 }}>
-                        {sport.name}
-                      </span>
-                      <span style={{
-                        display: "block", fontSize: 11, color: sport.available ? `${sport.accentColor}cc` : "rgba(255,255,255,0.3)",
-                        marginTop: 3, position: "relative",
-                      }}>
-                        {sport.tagline}
-                      </span>
-
-                      {/* ── IMPROVEMENT 2: Intentional Coming Soon badge OR arrow ── */}
-                      {sport.available ? (
-                        <div style={{
-                          marginTop: 12, display: "inline-flex", alignItems: "center", gap: 5,
-                          background: `${sport.accentColor}22`,
-                          border: `1px solid ${sport.accentColor}44`,
-                          borderRadius: 99, padding: "4px 12px",
-                          fontSize: 11, color: sport.accentColor, fontWeight: 700,
-                          position: "relative",
-                        }}>
-                          Play Now →
-                        </div>
-                      ) : (
-                        <div style={{
-                          marginTop: 12, display: "inline-flex", alignItems: "center", gap: 5,
-                          background: "rgba(255,255,255,0.05)",
-                          border: "1px solid rgba(255,255,255,0.12)",
-                          borderRadius: 99, padding: "4px 12px",
-                          fontSize: 11, fontWeight: 700,
-                          color: "rgba(255,255,255,0.35)",
-                          position: "relative",
-                          letterSpacing: "0.04em",
-                        }}>
-                          <span style={{
-                            width: 6, height: 6, borderRadius: "50%",
-                            background: "rgba(255,255,255,0.3)",
-                            display: "inline-block", flexShrink: 0,
-                          }} />
-                          Coming Soon
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* ── IMPROVEMENT 3: Recent Activity Feed ── */}
-                {allHistory.length > 0 && (
-                  <RecentActivityFeed allHistory={allHistory} />
-                )}
               </div>
             )}
 
-            {/* ── IPL MATCHES ── */}
-            {screen === "matches" && (
-              <div className="screen">
-                <Matches onBetOnMatch={handleBetOnMatch} onFantasy11={handleFantasy11} />
-              </div>
-            )}
-
-            {/* ── BET SCREEN ── */}
-            {screen === "bet" && (
-              <div className="screen bet-screen">
-                <h2 className="screen-title">Place Your Bet</h2>
-                {!prefilledMatch ? (
-                  <div style={{ textAlign: "center", padding: 40 }}>
-                    <div style={{ fontSize: 48, marginBottom: 16 }}>🏏</div>
-                    <p style={{ color: "var(--muted)", marginBottom: 20 }}>Pick an IPL match first, then come back to bet!</p>
-                    <button className="btn-primary" onClick={() => setScreen("matches")}>Browse IPL Matches →</button>
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ background: "rgba(29,158,117,0.1)", border: "1px solid #1D9E75", borderRadius: 12, padding: "12px 16px", marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <div>
-                        <div style={{ fontSize: 11, color: "#1D9E75", fontWeight: 600, marginBottom: 4, textTransform: "uppercase" }}>Selected Match</div>
-                        <div style={{ fontWeight: 600, fontSize: 16 }}>
-                          🏏 {prefilledMatch.matchLabel}
-                          {matchStatus === "live" && (
-                            <span style={{ marginLeft: 10, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "#FCEBEB", color: "#A32D2D", border: "0.5px solid #F09595" }}>● LIVE</span>
-                          )}
-                        </div>
-                      </div>
-                      <button onClick={() => { setPrefilledMatch(null); setSelectedSport(null); setSelectedTeam(null); setMatchStatus(null); }}
-                        style={{ background: "none", border: "none", color: "var(--muted)", cursor: "pointer", fontSize: 20 }}>×</button>
-                    </div>
-
-                    {isBettingLocked && (
-                      <div style={{ background: "#FCEBEB", border: "0.5px solid #F09595", borderRadius: 12, padding: "16px 20px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 12 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#F7C1C1", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 18 }}>🔒</div>
-                        <div>
-                          <div style={{ fontWeight: 600, color: "#A32D2D", marginBottom: 4, fontSize: 14 }}>Bets are locked for this match</div>
-                          <div style={{ fontSize: 13, color: "#993C1D", lineHeight: 1.5 }}>
-                            {matchStatus === "live" ? "This match has already started." : "This match has already ended."} Go back and pick an upcoming match.
-                          </div>
-                          <button className="btn-primary" style={{ marginTop: 12, padding: "8px 16px", fontSize: 13 }} onClick={() => setScreen("matches")}>Browse Upcoming Matches →</button>
-                        </div>
-                      </div>
-                    )}
-
-                    {!isBettingLocked && (
-                      <>
-                        <div className="section">
-                          <div className="section-label">Pick Your Team</div>
-                          <div className="team-grid">
-                            {selectedSport?.teams.map(team => {
-                              const teamOdds  = prefilledMatch?.odds?.[team];
-                              const isSelected = selectedTeam === team;
-                              const isFav     = teamOdds && prefilledMatch?.odds ? teamOdds === Math.min(...Object.values(prefilledMatch.odds)) : false;
-                              return (
-                                <button key={team} className={`team-card ${isSelected ? "selected" : ""}`} onClick={() => setSelectedTeam(team)}>
-                                  <span>{team}</span>
-                                  {teamOdds && (
-                                    <span style={{ display: "block", fontSize: 12, fontWeight: 700, marginTop: 5, color: isFav ? "#0F6E56" : "#A32D2D", background: isFav ? "#E1F5EE" : "#FCEBEB", borderRadius: 6, padding: "2px 8px", border: `1px solid ${isFav ? "#5DCAA5" : "#F09595"}` }}>
-                                      {teamOdds}x {isFav ? "⭐ Fav" : "💎 Dog"}
-                                    </span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {selectedTeam && (
-                          <div className="section">
-                            {prefilledMatch?.odds?.[selectedTeam] && betAmount && parseInt(betAmount) > 0 && (
-                              <div style={{ background: "#E1F5EE", border: "1px solid #5DCAA5", borderRadius: 10, padding: "14px 18px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <div>
-                                  <div style={{ fontSize: 11, color: "#085041", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Potential Win</div>
-                                  <div style={{ fontSize: 26, fontWeight: 700, color: "#0F6E56", lineHeight: 1 }}>{Math.floor(parseInt(betAmount) * prefilledMatch.odds[selectedTeam])} pts</div>
-                                  <div style={{ fontSize: 12, color: "#1D9E75", marginTop: 4 }}>{parseInt(betAmount)} pts × {prefilledMatch.odds[selectedTeam]}x odds</div>
-                                </div>
-                                <div style={{ textAlign: "right" }}>
-                                  <div style={{ fontSize: 11, color: "#888780", marginBottom: 2 }}>Profit if win</div>
-                                  <div style={{ fontSize: 18, fontWeight: 700, color: "#0F6E56" }}>+{Math.floor(parseInt(betAmount) * prefilledMatch.odds[selectedTeam]) - parseInt(betAmount)} pts</div>
-                                  <div style={{ fontSize: 10, color: "#888780", marginTop: 4 }}>📊 Live odds</div>
-                                </div>
-                              </div>
-                            )}
-                            <div className="section-label">Bet Amount (Available: {points} pts)</div>
-                            <div className="amount-row">
-                              {[50, 100, 250, 500].map(amt => (
-                                <button key={amt} className="amount-chip" onClick={() => setBetAmount(String(Math.min(amt, points)))}>{amt}</button>
-                              ))}
-                              <button className="amount-chip all-in" onClick={() => setBetAmount(String(points))}>ALL IN 🔥</button>
-                            </div>
-                            <div className="input-row">
-                              <input type="number" className="bet-input" placeholder="Enter amount..." value={betAmount} onChange={e => setBetAmount(e.target.value)} max={points} />
-                              <button className="btn-primary bet-btn" onClick={placeBet} disabled={loading || !betAmount || parseInt(betAmount) <= 0 || parseInt(betAmount) > points}>
-                                {loading ? <LoadingDots /> : "Lock Bet 🔒"}
-                              </button>
-                            </div>
-                            {error && <div className="error-msg">{error}</div>}
-                          </div>
-                        )}
-                      </>
-                    )}
-
-                    {isBettingLocked && error && <div className="error-msg">{error}</div>}
-                   <BetLockedModal
-  isOpen={!!betPlaced}
-  onClose={() => setBetPlaced(null)}
-  themeId={betPlaced?.themeId}
-  betAmount={betPlaced?.amount}
-  teamName={betPlaced?.team}
-  matchLabel={betPlaced?.matchLabel}
-  potentialWin={betPlaced?.potentialWin}
-  odds={betPlaced?.odds + "x"}
-/>  
-                  </>
-                )}
-              </div>
-            )}
-            
-
-            {/* ── FANTASY 11 SCREEN ── */}
-            {screen === "fantasy11" && (
-              <div className="screen">
-                <Fantasy11
-                  username={username}
-                  points={points}
-                  setPoints={setPoints}
-                  matchInfo={prefilledMatch}
-                  matchStatus={matchStatus}
-                />
-              </div>
-            )}
-
-            {/* ── LEADERBOARD ── */}
-            {screen === "leaderboard" && (
-              <div className="screen leaderboard-screen">
-                <h2 className="screen-title">🏆 Leaderboard</h2>
-                <button className="btn-primary" style={{ marginBottom: 20, padding: "0.5rem 1.5rem" }} onClick={fetchLeaderboard}>🔄 Refresh</button>
-                {leaderboard.length === 0 ? (
-                  <div className="empty-state">Loading players...</div>
-                ) : (
-                  <div className="leaderboard">
-                    {leaderboardList().map((player, i) => (
-                      <div key={player.name} className={`leaderboard-row ${player.name.includes("(You)") ? "you" : ""}`}>
-                        <div className="rank">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}</div>
-                        <div className="player-name">{player.name}</div>
-                        <div className="player-points">{player.points.toLocaleString()} pts</div>
-                        <div className="points-bar"><div className="points-fill" style={{ width: `${(player.points / maxPoints) * 100}%` }} /></div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* ── HISTORY ── */}
-            {screen === "history" && (
-              <div className="screen history-screen">
-                <h2 className="screen-title">📜 My History</h2>
-                <button className="btn-primary" style={{ marginBottom: 16, padding: "0.5rem 1.5rem" }} onClick={fetchAllHistory}>🔄 Refresh</button>
-                <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
-                  {historyTabs.map(tab => (
-                    <button key={tab.key} onClick={() => setHistoryFilter(tab.key)} style={{
-                      fontSize: 12, padding: "5px 14px", borderRadius: 99, cursor: "pointer",
-                      border: `1px solid ${historyFilter === tab.key ? tab.color : tab.color + "44"}`,
-                      background: historyFilter === tab.key ? tab.color + "22" : "transparent",
-                      color: historyFilter === tab.key ? tab.color : tab.color + "99",
-                      fontWeight: historyFilter === tab.key ? 700 : 400,
-                      transition: "all 0.15s",
-                    }}>
-                      {tab.emoji} {tab.label} ({tab.key === "all" ? allHistory.length : allHistory.filter(h => h.type === tab.key).length})
-                    </button>
-                  ))}
-                </div>
-
-                {filteredHistory.length === 0 ? (
-                  <div className="empty-state">
-                    {historyFilter === "fantasy11"
-                      ? "No Fantasy 11 squads yet! Go to 🏏 IPL tab and click Fantasy 11 on a match."
-                      : "No entries yet! Go to 🏏 IPL tab, ⚔️ Multiplayer, or join a contest 🎯"
-                    }
-                  </div>
-                ) : (
-                  <div className="history-list">
-                    {filteredHistory.map((item) => (
-                      <div
-                        key={`${item.type}-${item._id}`}
-                        className={`history-row ${item.status === "won" ? "win" : item.status === "lost" ? "lose" : ""}`}
-                        onClick={() => setSelectedHistoryItem(item)}
-                        style={{ borderLeft: `3px solid ${statusColor(item.status)}`, cursor: "pointer", transition: "background 0.15s" }}
-                        onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.03)"}
-                        onMouseLeave={e => e.currentTarget.style.background = ""}
-                      >
-                        <div className="history-sport">{statusEmoji(item.status)}</div>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-                            <span style={{ fontWeight: 600, fontSize: 14 }}>{item.matchLabel}</span>
-                            <span style={{
-                              fontSize: 10, padding: "1px 7px", borderRadius: 99, fontWeight: 600,
-                              background: item.type === "bet" ? "#BA751722" : item.type === "contest" ? "#1D9E7522" : item.type === "fantasy11" ? "#ffd16622" : "#7F77DD22",
-                              color: item.type === "bet" ? "#BA7517" : item.type === "contest" ? "#1D9E75" : item.type === "fantasy11" ? "#8a6a00" : "#7F77DD",
-                            }}>
-                              {item.typeEmoji} {item.typeLabel}
+            {/* ── Bet form ── */}
+            {!isBettingLocked && (
+              <>
+                <div className="section">
+                  <div className="section-label">Pick Your Team</div>
+                  <div className="team-grid">
+                    {selectedSport?.teams.map(team => {
+                      const teamOdds   = prefilledMatch?.odds?.[team];
+                      const isSelected = selectedTeam === team;
+                      const isFav      = teamOdds && prefilledMatch?.odds
+                        ? teamOdds === Math.min(...Object.values(prefilledMatch.odds))
+                        : false;
+                      return (
+                        <button key={team} className={`team-card ${isSelected ? "selected" : ""}`} onClick={() => setSelectedTeam(team)}>
+                          <span>{team}</span>
+                          {teamOdds && (
+                            <span style={{ display: "block", fontSize: 12, fontWeight: 700, marginTop: 5, color: isFav ? "#0F6E56" : "#A32D2D", background: isFav ? "#E1F5EE" : "#FCEBEB", borderRadius: 6, padding: "2px 8px", border: `1px solid ${isFav ? "#5DCAA5" : "#F09595"}` }}>
+                              {teamOdds}x {isFav ? "⭐ Fav" : "💎 Dog"}
                             </span>
-                            {item.type === "bet" && item.odds && item.odds !== 2.0 && (
-                              <span style={{ fontSize: 10, padding: "1px 7px", borderRadius: 99, fontWeight: 600, background: "#E1F5EE", color: "#085041", border: "0.5px solid #5DCAA5" }}>{item.odds}x odds</span>
-                            )}
-                            <span style={{ fontSize: 9, color: "#7d8590", marginLeft: "auto" }}>tap for details →</span>
-                          </div>
-                          {item.type === "fantasy11" ? (
-                            <div style={{ fontSize: 12, marginTop: 4 }}>
-                              <span style={{ opacity: 0.7 }}>{item.team}</span>
-                              {item.players?.length > 0 && <span style={{ marginLeft: 8, opacity: 0.5, fontSize: 11 }}>· {item.players.length} players selected</span>}
-                            </div>
-                          ) : (
-                            <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
-                              Picked: <strong>{item.team}</strong>
-                              {item.type === "contest"   && item.contestName && <span style={{ marginLeft: 6, opacity: 0.6 }}>· {item.contestName}</span>}
-                              {item.type === "challenge" && item.opponent    && <span style={{ marginLeft: 6, opacity: 0.6 }}>· vs {item.opponent}</span>}
-                            </div>
                           )}
-                          {item.detail && (
-                            <div style={{
-                              fontSize: 11, marginTop: 3,
-                              color: item.type === "fantasy11" && item.fantasyPoints !== null ? "#ffd166" : "rgba(255,255,255,0.4)",
-                              fontWeight: item.type === "fantasy11" && item.fantasyPoints !== null ? 700 : 400,
-                            }}>
-                              {item.type === "fantasy11" && item.fantasyPoints !== null ? "🏏 " : ""}{item.detail}
-                            </div>
-                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {selectedTeam && (
+                  <div className="section">
+                    {prefilledMatch?.odds?.[selectedTeam] && betAmount && parseInt(betAmount) > 0 && (
+                      <div style={{ background: "#E1F5EE", border: "1px solid #5DCAA5", borderRadius: 10, padding: "14px 18px", marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <div>
+                          <div style={{ fontSize: 11, color: "#085041", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>Potential Win</div>
+                          <div style={{ fontSize: 26, fontWeight: 700, color: "#0F6E56", lineHeight: 1 }}>{Math.floor(parseInt(betAmount) * prefilledMatch.odds[selectedTeam])} pts</div>
+                          <div style={{ fontSize: 12, color: "#1D9E75", marginTop: 4 }}>{parseInt(betAmount)} pts × {prefilledMatch.odds[selectedTeam]}x odds</div>
                         </div>
                         <div style={{ textAlign: "right" }}>
-                          <div style={{
-                            color: item.type === "fantasy11" ? (item.fantasyPoints !== null ? "#ffd166" : "#888780") : statusColor(item.status),
-                            fontWeight: 600, fontSize: 14, marginBottom: 4,
-                          }}>
-                            {pointsDisplay(item)}
-                          </div>
-                          <div className="history-badge" style={{ background: `${statusColor(item.status)}22`, color: statusColor(item.status) }}>
-                            {statusLabel(item.status)}
-                          </div>
+                          <div style={{ fontSize: 11, color: "#888780", marginBottom: 2 }}>Profit if win</div>
+                          <div style={{ fontSize: 18, fontWeight: 700, color: "#0F6E56" }}>+{Math.floor(parseInt(betAmount) * prefilledMatch.odds[selectedTeam]) - parseInt(betAmount)} pts</div>
+                          <div style={{ fontSize: 10, color: "#888780", marginTop: 4 }}>📊 Live odds</div>
                         </div>
                       </div>
-                    ))}
+                    )}
+                    <div className="section-label">Bet Amount (Available: {points} pts)</div>
+                    <div className="amount-row">
+                      {[50, 100, 250, 500].map(amt => (
+                        <button key={amt} className="amount-chip" onClick={() => setBetAmount(String(Math.min(amt, points)))}>{amt}</button>
+                      ))}
+                      <button className="amount-chip all-in" onClick={() => setBetAmount(String(points))}>ALL IN 🔥</button>
+                    </div>
+                    <div className="input-row">
+                      <input
+                        type="number" className="bet-input" placeholder="Enter amount..."
+                        value={betAmount} onChange={e => setBetAmount(e.target.value)} max={points}
+                      />
+                      <button
+                        className="btn-primary bet-btn" onClick={placeBet}
+                        disabled={loading || !betAmount || parseInt(betAmount) <= 0 || parseInt(betAmount) > points}
+                      >
+                        {loading ? <LoadingDots /> : "Lock Bet 🔒"}
+                      </button>
+                    </div>
+                    {error && <div className="error-msg">{error}</div>}
                   </div>
                 )}
-              </div>
-            )}
-            {/* ── PROFILE ── */}
-{screen === "profile" && (
-  <Profile
-    username={username}
-    points={points}
-    lockedPoints={lockedPoints}
-    allHistory={allHistory}
-    onNavigate={setScreen}
-    onThemeChange={setUserTheme}
-    currentTheme={userTheme}
-  />
-)}
-            {/* ── MULTIPLAYER ── */}
-            {screen === "multiplayer" && (
-              <div className="screen">
-                <Multiplayer username={username} points={points} setPoints={setPoints} />
-              </div>
+              </>
             )}
 
-            {/* ── MINES ── */}
-            {screen === "mines" && (
-              <div className="screen">
-                <Mines username={username} points={points} setPoints={setPoints} />
-              </div>
-            )}
+            {isBettingLocked && error && <div className="error-msg">{error}</div>}
+
+            <BetLockedModal
+              isOpen={!!betPlaced}
+              onClose={() => setBetPlaced(null)}
+              themeId={betPlaced?.themeId}
+              betAmount={betPlaced?.amount}
+              teamName={betPlaced?.team}
+              matchLabel={betPlaced?.matchLabel}
+              potentialWin={betPlaced?.potentialWin}
+              odds={betPlaced?.odds + "x"}
+            />
           </>
         )}
-
-        {/* ── MOBILE BOTTOM NAV ── */}
-        {screen !== "auth" && (
-          <nav className="bottom-nav">
-            <button className={`bottom-nav-btn ${screen === "home" ? "active" : ""}`} onClick={() => setScreen("home")}>
-              <span className="bottom-nav-icon">🏠</span>
-              <span className="bottom-nav-label">Home</span>
-            </button>
-            <button className={`bottom-nav-btn ${screen === "matches" ? "active" : ""}`} onClick={() => setScreen("matches")}>
-              <span className="bottom-nav-icon">🏏</span>
-              <span className="bottom-nav-label">IPL</span>
-            </button>
-            <button className={`bottom-nav-btn ${screen === "fantasy11" ? "active" : ""}`} onClick={() => setScreen("fantasy11")}>
-              <span className="bottom-nav-icon">🏆</span>
-              <span className="bottom-nav-label">Fantasy</span>
-            </button>
-            <button className={`bottom-nav-btn ${screen === "multiplayer" ? "active" : ""}`} onClick={() => setScreen("multiplayer")}>
-              <span className="bottom-nav-icon">⚔️</span>
-              <span className="bottom-nav-label">Multi</span>
-            </button>
-            <button className={`bottom-nav-btn ${screen === "history" ? "active" : ""}`} onClick={() => { fetchAllHistory(); setScreen("history"); }}>
-              <span className="bottom-nav-icon">📜</span>
-              <span className="bottom-nav-label">History</span>
-              {pendingCount > 0 && <span className="bottom-nav-badge">{pendingCount}</span>}
-            </button>
-            <button className={`bottom-nav-btn ${screen === "profile" ? "active" : ""}`} onClick={() => setScreen("profile")}>
-  <span className="bottom-nav-icon">👤</span>
-  <span className="bottom-nav-label">Profile</span>
-</button>
-            <button className={`bottom-nav-btn ${screen === "mines" ? "active" : ""}`} onClick={() => setScreen("mines")}>
-              <span className="bottom-nav-icon">💣</span>
-              <span className="bottom-nav-label">Mines</span>
-            </button>
-          </nav>
-          
-        )}
-          {/* ── THEME MUSIC PLAYER ── */}
-        {screen !== "auth" && <ThemeMusicPlayer />}
       </div>
-    );
-  }
+    )}
+
+    {/* ── FANTASY 11 SCREEN ── */}
+    {screen === "fantasy11" && (
+      <div className="screen">
+        <Fantasy11
+          username={username}
+          points={points}
+          setPoints={setPoints}
+          matchInfo={prefilledMatch}
+          matchStatus={matchStatus}
+        />
+      </div>
+    )}
+
+    {/* ── LEADERBOARD ── */}
+    {screen === "leaderboard" && (
+      <div className="screen leaderboard-screen">
+        <h2 className="screen-title">🏆 Leaderboard</h2>
+        <button className="btn-primary" style={{ marginBottom: 20, padding: "0.5rem 1.5rem" }} onClick={fetchLeaderboard}>🔄 Refresh</button>
+        {leaderboard.length === 0 ? (
+          <div className="empty-state">Loading players...</div>
+        ) : (
+          <div className="leaderboard">
+            {leaderboardList().map((player, i) => (
+              <div key={player.name} className={`leaderboard-row ${player.name.includes("(You)") ? "you" : ""}`}>
+                <div className="rank">{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `#${i + 1}`}</div>
+                <div className="player-name">{player.name}</div>
+                <div className="player-points">{player.points.toLocaleString()} pts</div>
+                <div className="points-bar"><div className="points-fill" style={{ width: `${(player.points / maxPoints) * 100}%` }} /></div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* ── HISTORY ── */}
+    {screen === "history" && (
+      <div className="screen history-screen">
+        <h2 className="screen-title">📜 My History</h2>
+        <button className="btn-primary" style={{ marginBottom: 16, padding: "0.5rem 1.5rem" }} onClick={fetchAllHistory}>🔄 Refresh</button>
+        <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+          {historyTabs.map(tab => (
+            <button key={tab.key} onClick={() => setHistoryFilter(tab.key)} style={{
+              fontSize: 12, padding: "5px 14px", borderRadius: 99, cursor: "pointer",
+              border: `1px solid ${historyFilter === tab.key ? tab.color : tab.color + "44"}`,
+              background: historyFilter === tab.key ? tab.color + "22" : "transparent",
+              color: historyFilter === tab.key ? tab.color : tab.color + "99",
+              fontWeight: historyFilter === tab.key ? 700 : 400,
+              transition: "all 0.15s",
+            }}>
+              {tab.emoji} {tab.label} ({tab.key === "all" ? allHistory.length : allHistory.filter(h => h.type === tab.key).length})
+            </button>
+          ))}
+        </div>
+
+        {filteredHistory.length === 0 ? (
+          <div className="empty-state">
+            {historyFilter === "fantasy11"
+              ? "No Fantasy 11 squads yet! Go to 🏏 IPL tab and click Fantasy 11 on a match."
+              : historyFilter === "bet"
+              ? "No bets yet! Go to 🏏 IPL or ⚽ Football and click Bet Now."
+              : "No entries yet! Go to 🏏 IPL, ⚽ Football, ⚔️ Multiplayer, or join a contest 🎯"
+            }
+          </div>
+        ) : (
+          <div className="history-list">
+            {filteredHistory.map((item) => (
+              <div
+                key={`${item.type}-${item._id}`}
+                className={`history-row ${item.status === "won" ? "win" : item.status === "lost" ? "lose" : ""}`}
+                onClick={() => setSelectedHistoryItem(item)}
+                style={{ borderLeft: `3px solid ${statusColor(item.status)}`, cursor: "pointer", transition: "background 0.15s" }}
+                onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.03)"}
+                onMouseLeave={e => e.currentTarget.style.background = ""}
+              >
+                <div className="history-sport">{statusEmoji(item.status)}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ fontWeight: 600, fontSize: 14 }}>{item.matchLabel}</span>
+                    <span style={{
+                      fontSize: 10, padding: "1px 7px", borderRadius: 99, fontWeight: 600,
+                      background: item.type === "bet" ? "#BA751722" : item.type === "contest" ? "#1D9E7522" : item.type === "fantasy11" ? "#ffd16622" : "#7F77DD22",
+                      color: item.type === "bet" ? "#BA7517" : item.type === "contest" ? "#1D9E75" : item.type === "fantasy11" ? "#8a6a00" : "#7F77DD",
+                    }}>
+                      {item.typeEmoji} {item.typeLabel}
+                    </span>
+                    {item.type === "bet" && item.odds && item.odds !== 2.0 && (
+                      <span style={{ fontSize: 10, padding: "1px 7px", borderRadius: 99, fontWeight: 600, background: "#E1F5EE", color: "#085041", border: "0.5px solid #5DCAA5" }}>{item.odds}x odds</span>
+                    )}
+                    <span style={{ fontSize: 9, color: "#7d8590", marginLeft: "auto" }}>tap for details →</span>
+                  </div>
+                  {item.type === "fantasy11" ? (
+                    <div style={{ fontSize: 12, marginTop: 4 }}>
+                      <span style={{ opacity: 0.7 }}>{item.team}</span>
+                      {item.players?.length > 0 && <span style={{ marginLeft: 8, opacity: 0.5, fontSize: 11 }}>· {item.players.length} players selected</span>}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>
+                      Picked: <strong>{item.team}</strong>
+                      {item.type === "contest"   && item.contestName && <span style={{ marginLeft: 6, opacity: 0.6 }}>· {item.contestName}</span>}
+                      {item.type === "challenge" && item.opponent    && <span style={{ marginLeft: 6, opacity: 0.6 }}>· vs {item.opponent}</span>}
+                    </div>
+                  )}
+                  {item.detail && (
+                    <div style={{
+                      fontSize: 11, marginTop: 3,
+                      color: item.type === "fantasy11" && item.fantasyPoints !== null ? "#ffd166" : "rgba(255,255,255,0.4)",
+                      fontWeight: item.type === "fantasy11" && item.fantasyPoints !== null ? 700 : 400,
+                    }}>
+                      {item.type === "fantasy11" && item.fantasyPoints !== null ? "🏏 " : ""}{item.detail}
+                    </div>
+                  )}
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <div style={{
+                    color: item.type === "fantasy11" ? (item.fantasyPoints !== null ? "#ffd166" : "#888780") : statusColor(item.status),
+                    fontWeight: 600, fontSize: 14, marginBottom: 4,
+                  }}>
+                    {pointsDisplay(item)}
+                  </div>
+                  <div className="history-badge" style={{ background: `${statusColor(item.status)}22`, color: statusColor(item.status) }}>
+                    {statusLabel(item.status)}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* ── PROFILE ── */}
+    {screen === "profile" && (
+      <Profile
+        username={username}
+        points={points}
+        lockedPoints={lockedPoints}
+        allHistory={allHistory}
+        onNavigate={setScreen}
+        onThemeChange={setUserTheme}
+        currentTheme={userTheme}
+      />
+    )}
+
+    {/* ── MULTIPLAYER ── */}
+    {screen === "multiplayer" && (
+      <div className="screen">
+        <Multiplayer username={username} points={points} setPoints={setPoints} />
+      </div>
+    )}
+
+    {/* ── MINES ── */}
+    {screen === "mines" && (
+      <div className="screen">
+        <Mines username={username} points={points} setPoints={setPoints} />
+      </div>
+    )}
+  </>
+)}
+
+{/* ── MOBILE BOTTOM NAV ── */}
+{screen !== "auth" && (
+  <nav className="bottom-nav">
+    <button className={`bottom-nav-btn ${screen === "home"        ? "active" : ""}`} onClick={() => setScreen("home")}>
+      <span className="bottom-nav-icon">🏠</span>
+      <span className="bottom-nav-label">Home</span>
+    </button>
+    <button className={`bottom-nav-btn ${screen === "matches"     ? "active" : ""}`} onClick={() => setScreen("matches")}>
+      <span className="bottom-nav-icon">🏏</span>
+      <span className="bottom-nav-label">IPL</span>
+    </button>
+    <button className={`bottom-nav-btn ${screen === "football"    ? "active" : ""}`} onClick={() => setScreen("football")}>
+      <span className="bottom-nav-icon">⚽</span>
+      <span className="bottom-nav-label">Football</span>
+    </button>
+    <button className={`bottom-nav-btn ${screen === "fantasy11"   ? "active" : ""}`} onClick={() => setScreen("fantasy11")}>
+      <span className="bottom-nav-icon">🏆</span>
+      <span className="bottom-nav-label">Fantasy</span>
+    </button>
+    <button className={`bottom-nav-btn ${screen === "multiplayer" ? "active" : ""}`} onClick={() => setScreen("multiplayer")}>
+      <span className="bottom-nav-icon">⚔️</span>
+      <span className="bottom-nav-label">Multi</span>
+    </button>
+    <button className={`bottom-nav-btn ${screen === "history"     ? "active" : ""}`} onClick={() => { fetchAllHistory(); setScreen("history"); }}>
+      <span className="bottom-nav-icon">📜</span>
+      <span className="bottom-nav-label">History</span>
+      {pendingCount > 0 && <span className="bottom-nav-badge">{pendingCount}</span>}
+    </button>
+    <button className={`bottom-nav-btn ${screen === "profile"     ? "active" : ""}`} onClick={() => setScreen("profile")}>
+      <span className="bottom-nav-icon">👤</span>
+      <span className="bottom-nav-label">Profile</span>
+    </button>
+    <button className={`bottom-nav-btn ${screen === "mines"       ? "active" : ""}`} onClick={() => setScreen("mines")}>
+      <span className="bottom-nav-icon">💣</span>
+      <span className="bottom-nav-label">Mines</span>
+    </button>
+  </nav>
+)}
+
+{/* ── THEME MUSIC PLAYER ── */}
+{screen !== "auth" && <ThemeMusicPlayer />}
+</div>
+);
+// ← single closing brace — end of export default function App()
