@@ -52,5 +52,5 @@ npm start
 ---
 
 <div align="center">
-  Made with ❤️ by <a href="https://github.com/Ram-anuj-web">Ram Anuj</a>
+  Made with ❤️ by <a href="https://github.com/0xDracarys">Shubham Bhasker</a>
 </div>
