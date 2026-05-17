@@ -2,7 +2,7 @@
 
 > A full-stack fantasy sports betting platform built for IPL cricket fans. Place bets, build Fantasy 11 squads, compete in multiplayer contests, and play Mines — all in one app.
 
-🌐 **Live Demo:** [betting-app-omega.vercel.app](https://betting-app-omega.vercel.app)
+🌐 **Live Demo:** https://crickbet-frontend-j1.netlify.app/
 
 ---
 
